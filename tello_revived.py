@@ -27,7 +27,7 @@ import pygame
 from pygame._sdl2 import controller as sdl_controller
 
 from menu import Menu
-from settings import Settings, data_dir, key_label, pad_label, resource_dir, stream_settings_supported
+from settings import VERSION, Settings, data_dir, key_label, pad_label, resource_dir, stream_settings_supported
 
 TELLO_ADDR = ("192.168.10.1", 8889)
 CMD_PORT = 8889
@@ -37,7 +37,6 @@ MEDIA_DIR = data_dir() / "media"
 ICON_PATH = resource_dir() / "assets" / "icon.png"
 MONO = "consolas,dejavusansmono,menlo,couriernew"  # first one installed wins
 
-VERSION = "0.6"
 RC_HZ = 20
 BAR_H = 30  # height of the button guide at the bottom
 LAND_STALL = 4.0  # seconds without descending before a landing attempt counts as failed
@@ -418,7 +417,7 @@ def shape(v, deadzone, expo):
 
 class App:
     def __init__(self):
-        pygame.display.set_caption(f"Tello Revived {VERSION}")
+        pygame.display.set_caption("Tello Revived")
         try:
             pygame.display.set_icon(pygame.image.load(str(ICON_PATH)))
         except (pygame.error, FileNotFoundError):

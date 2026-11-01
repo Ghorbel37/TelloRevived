@@ -23,6 +23,7 @@ def resource_dir():
     return Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 
 
+VERSION = "0.7"
 CONFIG_PATH = data_dir() / "config.json"
 
 # Keyboard bindings are scancodes (physical key positions), so they work on any layout.

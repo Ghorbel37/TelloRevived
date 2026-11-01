@@ -4,7 +4,7 @@ import time
 
 import pygame
 
-from settings import (DRONE_MODELS, KEY_ACTIONS, PAD_ACTIONS, help_rows, key_label, pad_label,
+from settings import (VERSION, DRONE_MODELS, KEY_ACTIONS, PAD_ACTIONS, help_rows, key_label, pad_label,
                       stream_settings_supported)
 
 STREAM_KEYS = ("resolution", "stream_fps", "bitrate")  # SDK 3.0 only
@@ -306,6 +306,9 @@ class Menu:
             app.text(name, rect.center, (255, 255, 255) if i == self.tab else DIM, app.font_small, "center")
             self.tab_rects.append(rect)
             x = rect.right + 6
+        version = app.font_small.render(f"Tello Revived {VERSION}", True, DIM)
+        if x + version.get_width() + 16 < box.right:  # skip on narrow windows
+            app.text(f"Tello Revived {VERSION}", (box.right - 16, box.top + 26), DIM, app.font_small, "midright")
         pygame.draw.line(screen, (70, 80, 100), (box.left, box.top + 50), (box.right, box.top + 50))
 
         top, bottom = box.top + 62, box.bottom - 44
