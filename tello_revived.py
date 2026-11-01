@@ -37,6 +37,7 @@ MEDIA_DIR = Path(__file__).resolve().parent / "media"
 ICON_PATH = Path(__file__).resolve().parent / "assets" / "icon.png"
 
 RC_HZ = 20
+BAR_H = 30  # height of the button guide at the bottom
 LAND_STALL = 4.0  # seconds without descending before a landing attempt counts as failed
 SPEED_NAMES = ["slow", "normal", "fast"]
 
@@ -429,6 +430,7 @@ class App:
         self.takeoff_until = 0.0
         self.quit_after_land = False
         self.held_scans = set()
+        self.last_input = "pad"  # which device the button guide shows
         self.frame_surface = None
         self.scaled = None
         self.shown_frame_id = -1
@@ -561,6 +563,7 @@ class App:
     # ---- input ---------------------------------------------------------------
 
     def on_pad_button(self, b):
+        self.last_input = "pad"
         pad = self.settings["pad"]
         emergency = {pad["emergency_1"], pad["emergency_2"]} - {None}
         if b in emergency and emergency <= self.pad.held:
@@ -578,6 +581,7 @@ class App:
     def on_key(self, ev):
         keys = self.settings["keys"]
         sc = ev.scancode
+        self.last_input = "keys"
         if sc == keys["emergency"] and not self.menu.capture:
             self.emergency()
             return True
@@ -614,6 +618,8 @@ class App:
         fl, keys, held = self.settings["flight"], self.settings["keys"], self.held_scans
         lx, ly, rx, ry, l2, _ = (self.pad.axes() if fl["move_stick"] == "left"
                                  else self._swapped(self.pad.axes()))
+        if max(abs(lx), abs(ly), abs(rx), abs(ry)) > 0.5:
+            self.last_input = "pad"
         s = lambda v: shape(v, fl["deadzone"], fl["expo"])
         roll, pitch, throttle, yaw = s(lx), -s(ly), -s(ry), s(rx)
         # the arrow keys etc. drive the menu while it's open, so only the pad flies then
@@ -731,12 +737,16 @@ class App:
             if hud["video_fps"] and self.video.fps:
                 self.text(f"{self.video.fps:.0f} fps", (sw - 10, 42), (160, 160, 160), self.font_small, "topright")
 
+        bar = BAR_H if hud["hint_bar"] and not self.menu.is_open else 0
         if hud["sticks"]:
-            self.draw_stick((70, sh - 70), *self.stick_pair("left"))
-            self.draw_stick((sw - 70, sh - 70), *self.stick_pair("right"))
+            self.draw_stick((70, sh - 70 - bar), *self.stick_pair("left"))
+            self.draw_stick((sw - 70, sh - 70 - bar), *self.stick_pair("right"))
+
+        if bar and t.connected and not t.flying and not self.landing:
+            self.draw_takeoff_hint()
 
         if hud["messages"]:
-            y = sh - 30
+            y = sh - 30 - bar
             for ts, msg in reversed(list(t.log_lines)):
                 age = now - ts
                 if age > 5:
@@ -750,9 +760,100 @@ class App:
 
         if self.menu.is_open:
             self.menu.draw()
-        elif hud["help_hint"]:
-            self.text(f"Press {self.help_keys()} for help", (sw // 2, sh - 6), (150, 150, 150),
-                      self.font_small, "midbottom")
+        elif bar:
+            self.draw_hint_bar()
+
+    # ---- button guide --------------------------------------------------------
+
+    def input_device(self):
+        """'pad' or 'keys': whichever was used last (the guide shows its buttons)."""
+        return "pad" if self.pad.name and self.last_input == "pad" else "keys"
+
+    def flip_held(self):
+        """'pad' / 'keys' while the flip modifier is held, else None."""
+        if self.settings["pad"]["flip"] and self.settings["pad"]["flip"] in self.pad.held:
+            return "pad"
+        if self.settings["keys"]["flip"] is not None and self.settings["keys"]["flip"] in self.held_scans:
+            return "keys"
+        return None
+
+    def hint_items(self):
+        """(mode, [(button, what, colour)]) for the bottom bar, most important first."""
+        t, keys, pad = self.tello, self.settings["keys"], self.settings["pad"]
+        k = lambda a: key_label(keys[a]) if keys[a] is not None else None
+        p = lambda a: pad_label(pad[a]) if pad[a] else None
+        on_pad = self.input_device() == "pad"
+        b = p if on_pad else k
+        red, amber = (240, 90, 80), (240, 200, 60)
+        if on_pad:
+            emergency = f"{p('emergency_1')} + {p('emergency_2')}" if pad["emergency_1"] and pad["emergency_2"] else None
+            speed = p("speed")
+            help_items = [(p("menu"), "Help & settings", None)]
+        else:
+            emergency = k("emergency")
+            speed = " ".join(filter(None, (k("speed_slow"), k("speed_normal"), k("speed_fast")))) or k("speed")
+            help_items = [(k("help"), "Help", None), (k("settings"), "Settings", None)]
+
+        if t.flying and (flip := self.flip_held()):
+            if flip == "pad":
+                dirs = [("↑", "forward"), ("↓", "back"), ("←", "left"), ("→", "right")]
+                items = [(f"D-pad {arrow}", f"Flip {what}", amber) for arrow, what in dirs]
+            else:
+                items = [(k(a), f"Flip {a}", amber) for a in ("forward", "back", "left", "right")]
+            bat = t.state.get("bat", 0)
+            items.append(("!", "needs > 50% battery" if bat > 50 else f"battery {bat:.0f}% - too low to flip", red))
+            mode = ("FLIP", amber)
+        elif t.flying:
+            items = []
+            if self.landing or self.land_failed:
+                items.append((emergency, "EMERGENCY stop", red))
+            items += [(b("land"), "Land", None),
+                      (speed, f"Speed: {SPEED_NAMES[self.speed_idx]}", None),
+                      (b("photo"), "Photo", None),
+                      (b("record"), "Stop recording" if self.video.recording else "Record", None),
+                      (b("flip"), "Hold: flips", None)] + help_items
+            mode = ("LANDING", amber) if self.landing else ("FLYING", (90, 220, 120))
+        elif t.connected:
+            items = [(b("takeoff"), "Take off", None), (b("photo"), "Photo", None),
+                     (b("record"), "Stop recording" if self.video.recording else "Record", None)] + help_items
+            mode = ("READY", (120, 190, 255))
+        else:
+            items = help_items + [(k("quit"), "Quit", None)]
+            mode = ("OFFLINE", (150, 150, 150))
+        return mode, [(btn, what, col) for btn, what, col in items if btn and btn != "-"]
+
+    def draw_hint_bar(self):
+        """Zellij-style strip of the buttons that matter right now."""
+        sw, sh = self.screen.get_size()
+        bar = pygame.Rect(0, sh - BAR_H, sw, BAR_H)
+        self.panel(bar, 190)
+        (mode, mode_col), items = self.hint_items()
+        f = self.font_small
+        img = f.render(f" {mode} ", True, (15, 18, 24))
+        chip = img.get_rect(midleft=(6, bar.centery)).inflate(0, 8)
+        pygame.draw.rect(self.screen, mode_col, chip)
+        self.screen.blit(img, img.get_rect(center=chip.center))
+        x = chip.right + 14
+        for btn, what, col in items:
+            kimg = f.render(f" {btn} ", True, (15, 18, 24))
+            wimg = f.render(what, True, (225, 225, 225))
+            if x + kimg.get_width() + 5 + wimg.get_width() > sw - 6:
+                break  # narrow window: drop the less important ones
+            chip = kimg.get_rect(midleft=(x, bar.centery)).inflate(0, 6)
+            pygame.draw.rect(self.screen, col or (200, 205, 215), chip, border_radius=4)
+            self.screen.blit(kimg, kimg.get_rect(center=chip.center))
+            x = self.screen.blit(wimg, wimg.get_rect(midleft=(chip.right + 5, bar.centery))).right + 16
+
+    def draw_takeoff_hint(self):
+        sw, sh = self.screen.get_size()
+        on_pad = self.input_device() == "pad"
+        btn = pad_label(self.settings["pad"]["takeoff"]) if on_pad else key_label(self.settings["keys"]["takeoff"])
+        if btn == "-":
+            return
+        rect = self.text(f"Press {btn} to take off", (sw // 2, sh // 2 + 110), (120, 255, 160),
+                         self.font_big, "center")
+        self.text("Check there is space around and above the drone", (sw // 2, rect.bottom + 6),
+                  (170, 170, 170), self.font_small, "midtop")
 
     def draw_land_failed(self):
         sw, sh = self.screen.get_size()

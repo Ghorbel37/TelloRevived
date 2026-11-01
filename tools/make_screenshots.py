@@ -73,6 +73,23 @@ app.tello.log_lines.clear()
 app.tello.log("Speed: NORMAL")
 shot("flight")
 app.tello.log_lines.clear()
+
+
+def ready():
+    app.tello.state.update(h=0, tof=10, time=0, vgx=0, vgy=0, vgz=0)
+shot("ready", ready)
+
+
+def flip():
+    app.pad.held.add("l1")
+shot("flip", flip)
+app.pad.held.discard("l1")
+
+
+def keyboard():
+    app.last_input = "keys"
+shot("flight_keyboard", keyboard)
+app.last_input = "pad"
 for tab in ("Help", "Keyboard", "Gamepad", "Flight", "Video & Power"):
     app.menu.open(tab)
     if tab == "Keyboard":

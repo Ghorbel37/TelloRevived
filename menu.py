@@ -54,7 +54,7 @@ class Menu:
         if name == "HUD":
             items = [("top_bar", "Top bar (battery, Wi-Fi, flight time)"), ("flight_data", "Altitude / speed panel"),
                      ("heading", "Heading"), ("attitude", "Horizon line"), ("sticks", "Stick boxes"),
-                     ("messages", "Messages"), ("help_hint", "\"Press ... for help\" hint"),
+                     ("messages", "Messages"), ("hint_bar", "Button guide (bottom bar)"),
                      ("video_fps", "Video fps counter")]
             return [Row("toggle", label, "hud", k) for k, label in items] + [reset("hud", "HUD")]
         if name == "Flight":

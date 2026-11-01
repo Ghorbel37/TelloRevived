@@ -30,7 +30,7 @@ DEFAULTS = {
     },
     "hud": {
         "top_bar": True, "flight_data": True, "heading": True, "attitude": True,
-        "sticks": True, "messages": True, "help_hint": True, "video_fps": True,
+        "sticks": True, "messages": True, "hint_bar": True, "video_fps": True,
     },
     "flight": {
         "move_stick": "left",
