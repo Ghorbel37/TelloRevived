@@ -4,5 +4,5 @@ import os
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")  # before any module imports pygame
 
-VERSION = "0.7.2"
+VERSION = "0.8"
 REPO_URL = "https://github.com/Ghorbel37/TelloRevived"
