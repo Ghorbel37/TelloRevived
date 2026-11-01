@@ -1,10 +1,11 @@
-"""Draw the Tello Revived logo (assets/logo.png) and window icon (assets/icon.png).
+"""Draw the Tello Revived logo (assets/logo.png), window icon (icon.png) and app icons (icon.ico, icon.icns).
 
-    .venv\\Scripts\\python.exe assets\\make_logo.py
+    uv run python assets/make_logo.py
 """
 
 import math
 import os
+import struct
 from pathlib import Path
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
@@ -66,12 +67,43 @@ def draw():
     return surf
 
 
+def png_bytes(big, size):
+    """The logo scaled to size x size, as PNG file bytes."""
+    path = HERE / f".tmp_{size}.png"
+    pygame.image.save(pygame.transform.smoothscale(big, (size, size)), str(path))
+    data = path.read_bytes()
+    path.unlink()
+    return data
+
+
+def write_ico(big, path, sizes=(16, 24, 32, 48, 64, 128, 256)):
+    """Windows icon: an ICO directory whose entries are PNG images (supported since Vista)."""
+    images = [png_bytes(big, s) for s in sizes]
+    out = struct.pack("<HHH", 0, 1, len(images))  # reserved, type 1 = icon, image count
+    offset = 6 + 16 * len(images)
+    for s, data in zip(sizes, images):
+        # width, height (0 means 256), colours, reserved, planes, bits per pixel, size, offset
+        out += struct.pack("<BBBBHHII", s % 256, s % 256, 0, 0, 1, 32, len(data), offset)
+        offset += len(data)
+    path.write_bytes(out + b"".join(images))
+
+
+def write_icns(big, path):
+    """macOS icon: an ICNS container of PNG images, one per icon type."""
+    types = {"icp4": 16, "icp5": 32, "icp6": 64, "ic07": 128, "ic08": 256, "ic09": 512, "ic10": 1024}
+    body = b"".join(kind.encode() + struct.pack(">I", 8 + len(data)) + data
+                    for kind, data in ((k, png_bytes(big, s)) for k, s in types.items()))
+    path.write_bytes(b"icns" + struct.pack(">I", 8 + len(body)) + body)
+
+
 def main():
     pygame.init()
     big = draw()
     pygame.image.save(pygame.transform.smoothscale(big, (512, 512)), str(HERE / "logo.png"))
     pygame.image.save(pygame.transform.smoothscale(big, (64, 64)), str(HERE / "icon.png"))
-    print("wrote logo.png and icon.png")
+    write_ico(big, HERE / "icon.ico")  # used by the Windows build
+    write_icns(big, HERE / "icon.icns")  # used by the macOS build
+    print("wrote logo.png, icon.png, icon.ico and icon.icns")
 
 
 if __name__ == "__main__":

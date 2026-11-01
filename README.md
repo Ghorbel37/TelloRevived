@@ -144,7 +144,7 @@ uv sets up Python and the dependencies the first time. Without uv, double-click 
 | `tello_revived/labels.py` | Key and button names |
 | `tello_revived/paths.py` | Where settings, media and assets are |
 | `tello_revived/cli.py` | Command line: `--joytest`, `--selftest`, `--version` |
-| `assets/make_logo.py` | Draws `assets/logo.png` and the window icon |
+| `assets/make_logo.py` | Draws `assets/logo.png`, the window icon and the app icons (`.ico`, `.icns`) |
 | `tools/make_screenshots.py` | Renders the README screenshots without a drone |
 | `tools/build.py` | Builds the standalone app for the current system |
 | `.github/workflows/build.yml` | Builds and tests Windows, Linux and macOS versions on GitHub |

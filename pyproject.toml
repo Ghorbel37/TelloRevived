@@ -20,10 +20,7 @@ tello-revived = "tello_revived.cli:main"
 [dependency-groups]
 dev = ["numpy"]  # tools/make_screenshots.py draws its fake camera image with it; uv installs this group by default
 # uv sync --group build   (for tools/build.py)
-build = [
-    "pyinstaller>=6.10",
-    "pillow",  # lets PyInstaller turn the PNG logo into .ico / .icns
-]
+build = ["pyinstaller>=6.10"]
 
 [build-system]
 requires = ["hatchling"]

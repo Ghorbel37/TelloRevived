@@ -27,8 +27,11 @@ def arch():
 
 def pyinstaller(*args):
     sep = ";" if os.name == "nt" else ":"
+    # ready-made icons (assets/make_logo.py), so PyInstaller doesn't need Pillow to convert one;
+    # Linux executables have no icon
+    icon = ROOT / "assets" / ("icon.icns" if sys.platform == "darwin" else "icon.ico")
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--windowed",
-           "--name", NAME, "--icon", str(ROOT / "assets" / "logo.png"),
+           "--name", NAME, "--icon", str(icon),
            "--add-data", f"{ROOT / 'assets' / 'icon.png'}{sep}assets",
            "--distpath", str(DIST / "pyinstaller"), "--workpath", str(ROOT / "build"),
            "--specpath", str(ROOT / "build"), "--paths", str(ROOT),
