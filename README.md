@@ -21,7 +21,7 @@ Fly a Ryze/DJI Tello from your PC with a PS3 controller (via DsHidMini) or the k
 
 ## Download
 
-Ready-to-run builds for Windows, Linux and macOS are made by GitHub Actions: get them from the repository's **Releases** page, or from the **Actions** tab (open a run, then **Artifacts**).
+Ready-to-run builds for Windows, Linux and macOS are on the repository's **Releases** page.
 
 | System | File | How to start |
 |---|---|---|

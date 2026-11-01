@@ -23,7 +23,7 @@ def resource_dir():
     return Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 
 
-VERSION = "0.7.1"
+VERSION = "0.7.2"
 REPO_URL = "https://github.com/Ghorbel37/TelloRevived"
 CONFIG_PATH = data_dir() / "config.json"
 

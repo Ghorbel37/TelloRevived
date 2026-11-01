@@ -1,11 +1,10 @@
 name: Build
 
-# Builds Windows, Linux and macOS apps on every push; pushing a tag like v1.0 also makes a release.
+# Pushing a tag like v1.0 builds Windows, Linux and macOS apps and makes a release.
+# "Run workflow" on the Actions page builds them without a release.
 on:
   push:
-    branches: [main, master]
     tags: ["v*"]
-  pull_request:
   workflow_dispatch:
 
 jobs:
