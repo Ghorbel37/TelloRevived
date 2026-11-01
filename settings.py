@@ -38,6 +38,13 @@ DEFAULTS = {
         "deadzone": 0.08, "expo": 0.35, "precision": 0.3,
         "retry_landing": False, "land_attempts": 3, "takeoff_pause": 0, "land_on_quit": True,
     },
+    "power": {
+        "video": "on",              # on / flying (only while airborne) / off
+        "resolution": "default",    # default / high / low     (SDK 3.0 firmware only)
+        "stream_fps": "default",    # default / high / middle / low
+        "bitrate": "default",       # default / auto / 1..5 Mbps
+        "app_fps": 60, "auto_land_battery": 0, "low_battery_warning": 20,
+    },
 }
 
 KEY_ACTIONS = [

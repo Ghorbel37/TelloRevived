@@ -98,10 +98,12 @@ def help_rows(settings):
 class Tello:
     """Command, state and keep-alive link to the drone (SDK over UDP)."""
 
-    def __init__(self):
+    def __init__(self, settings):
+        self.settings = settings
         self.sock = self._udp(CMD_PORT)
         self.state_sock = self._udp(STATE_PORT)
         self.replies = queue.Queue()
+        self.stream_on = None  # what we last told the drone (None = unknown)
         self.query_lock = threading.Lock()
         self.awaiting = False
         self.state = {}
@@ -189,8 +191,27 @@ class Tello:
                 self.state = state
                 self.state_time = time.monotonic()
 
+    def want_video(self):
+        mode = self.settings["power"]["video"]
+        return mode == "on" or (mode == "flying" and self.flying)
+
+    def apply_stream_settings(self):
+        """Send the stream quality settings that aren't left at the drone's default."""
+        p = self.settings["power"]
+        cmds = []
+        if p["resolution"] != "default":
+            cmds.append(f"setresolution {p['resolution']}")
+        if p["stream_fps"] != "default":
+            cmds.append(f"setfps {p['stream_fps']}")
+        if p["bitrate"] != "default":
+            cmds.append(f"setbitrate {0 if p['bitrate'] == 'auto' else p['bitrate']}")
+        for cmd in cmds:
+            reply = self.query(cmd, 2.0)
+            if reply != "ok":
+                self.log(f"'{cmd}' not accepted ({reply or 'no reply'}) - needs Tello SDK 3.0 firmware")
+
     def _link_loop(self):
-        last_wifi = 0.0
+        last_wifi = last_stream = 0.0
         while self.running:
             now = time.monotonic()
             if self.session and not self.connected and now - self.session_time > 3:
@@ -198,14 +219,22 @@ class Tello:
                 self.log("Link lost - reconnecting")
             if not self.session:
                 if self.query("command", 1.0, lambda r: r == "ok"):
-                    if not self.query("streamon", 2.0, lambda r: r == "ok"):
-                        self.log("streamon got no reply - video may not start")
                     self.session = True
                     self.session_time = time.monotonic()
+                    self.stream_on = None
                     self.log("Tello connected")
+                    self.apply_stream_settings()
                 else:
                     time.sleep(0.5)
                 continue
+            want = self.want_video()
+            if want != self.stream_on and now - last_stream > 3:
+                last_stream = now
+                cmd = "streamon" if want else "streamoff"
+                if self.query(cmd, 2.0, lambda r: r == "ok"):
+                    self.stream_on = want
+                else:
+                    self.log(f"{cmd} got no reply - retrying")
             if self.connected and now - last_wifi > 3:
                 last_wifi = now
                 reply = self.query("wifi?", 1.0, lambda r: r.isdigit())
@@ -405,7 +434,7 @@ class App:
         self.screen = pygame.display.set_mode(self.windowed_size, pygame.RESIZABLE)
         self.fullscreen = False
         self.settings = Settings()
-        self.tello = Tello()
+        self.tello = Tello(self.settings)
         self.video = Video(self.tello.log)
         self.pad = Gamepad()
         self.speed_idx = 1
@@ -416,6 +445,7 @@ class App:
         self.land_kick = 0.0
         self.land_fails = 0
         self.land_failed = False
+        self.auto_landed = False
         self.takeoff_until = 0.0
         self.quit_after_land = False
         self.held_scans = set()
@@ -613,7 +643,7 @@ class App:
 
     def send_rc(self):
         now = time.monotonic()
-        if now - self.last_rc < 1 / RC_HZ:
+        if now - self.last_rc < 1 / RC_HZ - 0.005:
             return
         self.last_rc = now
         idle = not any(self.sticks)
@@ -652,7 +682,7 @@ class App:
             self.shown_frame_id = fid
             self.scaled = None
         self.screen.fill((12, 14, 18))
-        if not self.frame_surface:
+        if not self.frame_surface or not self.tello.want_video():
             return pygame.Rect(0, 0, sw, sh)
         fw, fh = self.frame_surface.get_size()
         k = min(sw / fw, sh / fh)
@@ -678,7 +708,13 @@ class App:
             self.text(f"Press {self.help_keys()} for controls", (sw // 2, sh // 2 + 30), (160, 160, 160),
                       self.font_small, "center")
         else:
-            if now - self.video.frame_time > 2:
+            video_mode = self.settings["power"]["video"]
+            if video_mode == "off":
+                self.text("VIDEO OFF (battery saver)", (sw // 2, sh // 2 - 80), (160, 160, 160), self.font, "center")
+            elif not t.want_video():
+                self.text("Video starts at takeoff (battery saver)", (sw // 2, sh // 2 - 80), (160, 160, 160),
+                          self.font, "center")
+            elif now - self.video.frame_time > 2:
                 self.text("NO VIDEO", (sw // 2, sh // 2 - 80), (240, 200, 60), self.font_big, "center")
             if hud["attitude"]:
                 self.draw_attitude(area.center, st)
@@ -695,7 +731,7 @@ class App:
             if hud["heading"]:
                 hdg = int(st.get("yaw", 0)) % 360
                 self.text(f"HDG {hdg:03d}°", (sw // 2, 42), anchor="midtop")
-            if st.get("bat", 100) <= 20 and blink:
+            if st.get("bat", 100) <= self.settings["power"]["low_battery_warning"] and blink:
                 self.text("LOW BATTERY - LAND", (sw // 2, 80), (240, 70, 60), self.font_big, "midtop")
             if hud["video_fps"] and self.video.fps:
                 self.text(f"{self.video.fps:.0f} fps", (sw - 10, 42), (160, 160, 160), self.font_small, "topright")
@@ -760,7 +796,8 @@ class App:
         if t.connected:
             x = self.text("● LINK", (x, 7), (90, 220, 120)).right + 18
             bat = int(st.get("bat", 0))
-            col = (90, 220, 120) if bat > 40 else (240, 200, 60) if bat > 20 else (240, 70, 60)
+            low = self.settings["power"]["low_battery_warning"]
+            col = (90, 220, 120) if bat > 2 * low else (240, 200, 60) if bat > low else (240, 70, 60)
             x = self.text(f"BAT {bat}%", (x, 7), col).right + 18
             if t.wifi is not None:
                 col = (90, 220, 120) if t.wifi > 60 else (240, 200, 60) if t.wifi > 30 else (240, 70, 60)
@@ -823,6 +860,7 @@ class App:
     def run(self):
         clock = pygame.time.Clock()
         running = True
+        minimized = False
         while running:
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT:
@@ -837,6 +875,10 @@ class App:
                     self.held_scans.discard(ev.scancode)
                 elif ev.type == pygame.WINDOWFOCUSLOST:
                     self.held_scans.clear()
+                elif ev.type == pygame.WINDOWMINIMIZED:
+                    minimized = True
+                elif ev.type in (pygame.WINDOWRESTORED, pygame.WINDOWMAXIMIZED, pygame.WINDOWSHOWN):
+                    minimized = False
                 else:
                     button = self.pad.handle(ev)
                     if button:
@@ -847,13 +889,27 @@ class App:
                     self.tello.log("Quit cancelled - the drone is still flying")
                 else:
                     running = False
+            self.check_battery()
             self.read_sticks()
             self.send_rc()
-            area = self.draw_video()
-            self.draw_hud(area)
-            pygame.display.flip()
-            clock.tick(60)
+            if not minimized:  # nothing to see: skip drawing to save power
+                area = self.draw_video()
+                self.draw_hud(area)
+                pygame.display.flip()
+            clock.tick(RC_HZ if minimized else self.settings["power"]["app_fps"])
         self.shutdown()
+
+    def check_battery(self):
+        """Auto-land once per flight when the battery reaches the configured level."""
+        limit = self.settings["power"]["auto_land_battery"]
+        if not self.tello.flying:
+            self.auto_landed = False
+            return
+        bat = self.tello.state.get("bat", 100)
+        if limit and not self.auto_landed and bat <= limit:
+            self.auto_landed = True
+            self.tello.log(f"Battery {bat:.0f}% - auto landing")
+            self.land()
 
     def shutdown(self):
         if self.tello.flying:  # forced quit mid-flight: last-ditch land
