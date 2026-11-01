@@ -8,7 +8,7 @@ Fly a Tello from the PC with a PS3 controller (DsHidMini) or the keyboard. You g
 2. Double-click `run.bat`. It creates `.venv` the first time if it's missing.
 3. On the first run, Windows Firewall will ask about Python. Allow it on **Public** networks, because Windows treats the Tello's Wi-Fi as public. If you don't, there will be no video and no telemetry.
 
-Press **H** (or **PS** on the pad) to see the controls. Photos and recordings are saved to `media\`. Recordings are saved as `.mp4` without re-encoding, so they keep the drone's original quality.
+Press **H** (or **Start** / **PS** on the pad) to see the controls. Photos and recordings are saved to `media\`. Recordings are saved as `.mp4` without re-encoding, so they keep the drone's original quality.
 
 ## Controller
 

@@ -79,7 +79,7 @@ HELP_LINES = [
     ("R1 / Square", "photo / start-stop recording"),
     ("L1 + D-pad", "flip"),
     ("Select + Start", "EMERGENCY motor stop"),
-    ("PS", "this help"),
+    ("Start or PS", "this help"),
     ("", ""),
     ("KEYBOARD", ""),
     ("W A S D", "forward / left / back / right (Z Q S D on AZERTY)"),
@@ -521,7 +521,7 @@ class App:
             self.photo()
         elif b == "square":
             self.toggle_record()
-        elif b == "ps":
+        elif b in ("ps", "start"):
             self.show_help = not self.show_help
 
     def on_key(self, ev):
