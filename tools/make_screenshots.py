@@ -48,7 +48,8 @@ def landscape(w=960, h=720):
 pygame.init(); sdl_controller.init()
 app = App()
 frame = landscape()
-app.video.frame = (960, 720, frame.tobytes()); app.video.frame_id = 1
+app.video.frame = ((960, 720), 960 * 3, frame.tobytes()); app.video.frame_id = 1
+app.video.native_size = (960, 720)
 app.video.fps = 30.0
 app.tello.wifi = 82
 app.pad.name = "PLAYSTATION(R)3 Controller"

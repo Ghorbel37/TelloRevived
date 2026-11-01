@@ -16,7 +16,10 @@ class Video:
     def __init__(self, log):
         self.log = log
         self.lock = threading.Lock()
-        self.frame = None  # (width, height, rgb bytes)
+        self.frame = None  # ((width, height), row pitch, rgb bytes), already scaled for the window
+        self.raw_frame = None  # the last decoded frame at full size, for photos
+        self.native_size = None  # the stream's own size
+        self.display_size = None  # set by the HUD: the size the window shows the video at
         self.frame_id = 0
         self.frame_time = 0.0
         self.fps = 0.0
@@ -36,6 +39,9 @@ class Video:
                 continue  # nothing arriving yet
             try:
                 stream = container.streams.video[0]
+                # One decoder thread: this small stream decodes in a few ms, while FFmpeg's default
+                # (a thread per CPU core) wastes CPU and holds frames back, adding delay.
+                stream.codec_context.thread_count = 1
                 frame_times = deque(maxlen=30)
                 for packet in container.demux(stream):
                     if not self.running:
@@ -48,19 +54,34 @@ class Video:
                     except Exception:
                         continue  # corrupted packet (Wi-Fi loss) - next keyframe fixes it
                     for f in frames:
-                        rgb = f.to_ndarray(format="rgb24")
+                        # convert to RGB and scale to the window in one FFmpeg step, here rather
+                        # than in the drawing loop
+                        size = self.display_size or (f.width, f.height)
+                        plane = f.reformat(width=size[0], height=size[1], format="rgb24").planes[0]
+                        rgb = bytes(plane)
                         now = time.monotonic()
                         frame_times.append(now)
                         if len(frame_times) > 1:
                             self.fps = (len(frame_times) - 1) / (frame_times[-1] - frame_times[0])
                         with self.lock:
-                            self.frame = (rgb.shape[1], rgb.shape[0], rgb.tobytes())
+                            self.frame = (size, plane.line_size, rgb)
+                            self.raw_frame = f
+                            self.native_size = (f.width, f.height)
                             self.frame_id += 1
                             self.frame_time = now
             except Exception:
                 pass  # stream timed out / dropped; reopen
             finally:
                 container.close()
+
+    def snapshot(self):
+        """The latest frame at full size as ((width, height), pitch, rgb bytes), or None."""
+        with self.lock:
+            f = self.raw_frame
+        if f is None:
+            return None
+        plane = f.reformat(format="rgb24").planes[0]
+        return (f.width, f.height), plane.line_size, bytes(plane)
 
     @property
     def recording(self):

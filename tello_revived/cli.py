@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--selftest", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     pygame.init()
+    pygame.mixer.quit()  # no sound: don't keep an audio device and its thread busy
     sdl_controller.init()
     if args.joytest:
         joytest()

@@ -33,28 +33,29 @@ class HudDrawing:
 
     def draw_video(self):
         with self.video.lock:
-            frame, fid = self.video.frame, self.video.frame_id
+            frame, fid, native = self.video.frame, self.video.frame_id, self.video.native_size
         sw, sh = self.screen.get_size()
+        if native:  # the video thread scales the next frames to fit the window
+            k = min(sw / native[0], sh / native[1])
+            self.video.display_size = (max(2, int(native[0] * k)), max(2, int(native[1] * k)))
         if frame and fid != self.shown_frame_id:
-            w, h, data = frame
-            self.frame_surface = pygame.image.frombuffer(data, (w, h), "RGB")
+            size, pitch, data = frame
+            self.frame_surface = pygame.image.frombuffer(data, size, "RGB", pitch)
             self.shown_frame_id = fid
-            self.scaled = None
         self.screen.fill((12, 14, 18))
         if self.frame_surface and (not self.tello.want_video()
                                    or time.monotonic() - self.video.frame_time > STALE_VIDEO):
             # stream stopped or link dropped: forget the old picture, so it doesn't flash up at the
             # next takeoff (a new frame replaces it as soon as one arrives)
-            self.frame_surface = self.scaled = None
+            self.frame_surface = None
         if not self.frame_surface:
             return pygame.Rect(0, 0, sw, sh)
-        fw, fh = self.frame_surface.get_size()
-        k = min(sw / fw, sh / fh)
-        size = (int(fw * k), int(fh * k))
-        if not self.scaled or self.scaled.get_size() != size:
-            self.scaled = pygame.transform.smoothscale(self.frame_surface, size)
-        rect = self.scaled.get_rect(center=(sw // 2, sh // 2))
-        self.screen.blit(self.scaled, rect)
+        picture = self.frame_surface
+        if self.video.display_size and picture.get_size() != self.video.display_size:
+            # the window was just resized: stretch this frame until a correctly sized one arrives
+            picture = pygame.transform.scale(picture, self.video.display_size)
+        rect = picture.get_rect(center=(sw // 2, sh // 2))
+        self.screen.blit(picture, rect)
         return rect
 
     def draw_hud(self, area):

@@ -32,6 +32,9 @@ def pyinstaller(*args):
            "--add-data", f"{ROOT / 'assets' / 'icon.png'}{sep}assets",
            "--distpath", str(DIST / "pyinstaller"), "--workpath", str(ROOT / "build"),
            "--specpath", str(ROOT / "build"), "--paths", str(ROOT),
+           # not used by the app; leaving them out makes the build smaller
+           "--exclude-module", "numpy", "--exclude-module", "ssl", "--exclude-module", "_ssl",
+           "--exclude-module", "_hashlib",
            *args, str(ROOT / "tello_revived" / "__main__.py")]
     subprocess.run(cmd, check=True)
     return DIST / "pyinstaller"

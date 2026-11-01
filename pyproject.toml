@@ -9,7 +9,6 @@ keywords = ["tello", "drone", "gamepad", "pygame"]
 dependencies = [
     "pygame-ce>=2.5",
     "av>=14",
-    "numpy",  # PyAV needs it to hand decoded frames over
 ]
 
 [project.urls]
@@ -19,6 +18,7 @@ Repository = "https://github.com/Ghorbel37/TelloRevived"
 tello-revived = "tello_revived.cli:main"
 
 [dependency-groups]
+dev = ["numpy"]  # tools/make_screenshots.py draws its fake camera image with it; uv installs this group by default
 # uv sync --group build   (for tools/build.py)
 build = [
     "pyinstaller>=6.10",

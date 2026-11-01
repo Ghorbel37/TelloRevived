@@ -52,8 +52,7 @@ class App(FlightActions, HudDrawing):
         self.quit_after_land = False
         self.held_scans = set()
         self.last_input = "pad"  # which device the button guide shows
-        self.frame_surface = None
-        self.scaled = None
+        self.frame_surface = None  # the video frame on screen (already scaled to the window)
         self.shown_frame_id = -1
         self.font = pygame.font.SysFont(MONO, 18, bold=True)
         self.font_big = pygame.font.SysFont(MONO, 30, bold=True)
@@ -97,7 +96,8 @@ class App(FlightActions, HudDrawing):
         while path.exists():  # several photos in the same second
             path = MEDIA_DIR / f"photo_{stamp()}_{n}.png"
             n += 1
-        pygame.image.save(self.frame_surface, str(path))
+        size, pitch, rgb = self.video.snapshot()  # full size, not the window-sized picture
+        pygame.image.save(pygame.image.frombuffer(rgb, size, "RGB", pitch), str(path))
         self.tello.log(f"Saved {path.name}")
 
     def toggle_record(self):
@@ -117,7 +117,6 @@ class App(FlightActions, HudDrawing):
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
             self.screen = pygame.display.set_mode(self.windowed_size, pygame.RESIZABLE)
-        self.scaled = None
 
     # ---- input -------------------------------------------------------------
 
