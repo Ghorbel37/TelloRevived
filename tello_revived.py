@@ -34,6 +34,7 @@ CMD_PORT = 8889
 STATE_PORT = 8890
 VIDEO_URL = "udp://0.0.0.0:11111?overrun_nonfatal=1&fifo_size=5000000"
 MEDIA_DIR = Path(__file__).resolve().parent / "media"
+ICON_PATH = Path(__file__).resolve().parent / "assets" / "icon.png"
 
 RC_HZ = 20
 LAND_STALL = 4.0  # seconds without descending before a landing attempt counts as failed
@@ -405,6 +406,10 @@ def shape(v, deadzone, expo):
 class App:
     def __init__(self):
         pygame.display.set_caption("Tello Revived")
+        try:
+            pygame.display.set_icon(pygame.image.load(str(ICON_PATH)))
+        except (pygame.error, FileNotFoundError):
+            pass
         self.windowed_size = (960, 720)
         self.screen = pygame.display.set_mode(self.windowed_size, pygame.RESIZABLE)
         self.fullscreen = False
