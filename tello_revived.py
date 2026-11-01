@@ -65,6 +65,8 @@ CTRL_BUTTONS = {
 }
 
 FLIP_DIRS = {"up": "f", "down": "b", "left": "l", "right": "r"}
+# Movement keys go by physical position (scancode), so WASD is ZQSD on AZERTY
+MOVE_SCANS = {pygame.KSCAN_W: "f", pygame.KSCAN_S: "b", pygame.KSCAN_A: "l", pygame.KSCAN_D: "r"}
 
 HELP_LINES = [
     ("GAMEPAD", ""),
@@ -79,7 +81,7 @@ HELP_LINES = [
     ("PS", "this help"),
     ("", ""),
     ("KEYBOARD", ""),
-    ("W A S D", "forward / left / back / right"),
+    ("W A S D", "forward / left / back / right (Z Q S D on AZERTY)"),
     ("Arrow up / down", "climb / descend"),
     ("Arrow left / right", "turn"),
     ("Shift (hold)", "precision"),
@@ -409,6 +411,7 @@ class App:
         self.show_help = False
         self.sticks = (0.0, 0.0, 0.0, 0.0)  # roll, pitch, throttle, yaw (-1..1, after scaling)
         self.last_rc = 0.0
+        self.held_scans = set()
         self.frame_surface = None
         self.scaled = None
         self.shown_frame_id = -1
@@ -489,9 +492,8 @@ class App:
 
     def on_key(self, ev):
         k, ctrl = ev.key, ev.mod & pygame.KMOD_CTRL
-        flips = {pygame.K_w: "f", pygame.K_s: "b", pygame.K_a: "l", pygame.K_d: "r"}
-        if ctrl and k in flips:
-            self.flip(flips[k])
+        if ctrl and ev.scancode in MOVE_SCANS:
+            self.flip(MOVE_SCANS[ev.scancode])
         elif k == pygame.K_BACKSPACE:
             self.emergency()
         elif k == pygame.K_t:
@@ -518,8 +520,9 @@ class App:
         keys = pygame.key.get_pressed()
         mods = pygame.key.get_mods()
         if not mods & pygame.KMOD_CTRL:
-            roll += keys[pygame.K_d] - keys[pygame.K_a]
-            pitch += keys[pygame.K_w] - keys[pygame.K_s]
+            held = {MOVE_SCANS[s] for s in self.held_scans if s in MOVE_SCANS}
+            roll += ("r" in held) - ("l" in held)
+            pitch += ("f" in held) - ("b" in held)
         throttle += keys[pygame.K_UP] - keys[pygame.K_DOWN]
         yaw += keys[pygame.K_RIGHT] - keys[pygame.K_LEFT]
         precision = max(l2, 1.0 if mods & pygame.KMOD_SHIFT else 0.0)
@@ -691,7 +694,12 @@ class App:
                     self.pad.rescan()
                     self.tello.log(f"Gamepad: {self.pad.name}" if self.pad.name else "Gamepad disconnected")
                 elif ev.type == pygame.KEYDOWN:
+                    self.held_scans.add(ev.scancode)
                     running = self.on_key(ev)
+                elif ev.type == pygame.KEYUP:
+                    self.held_scans.discard(ev.scancode)
+                elif ev.type == pygame.WINDOWFOCUSLOST:
+                    self.held_scans.clear()
                 else:
                     button = self.pad.handle(ev)
                     if button:
