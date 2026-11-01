@@ -4,8 +4,8 @@
     run.bat              start the app
     run.bat --joytest    show raw gamepad axis/button numbers (for RAW_MAP below)
 
-Connect the PC's Wi-Fi to the TELLO-XXXXXX network first. Press H in the app for the controls.
-Bindings and options are saved in config.json next to this file.
+Connect the PC's Wi-Fi to the TELLO-XXXXXX network first. In the app press H (or Start) for the
+controls and O for settings; everything is saved in config.json next to this file.
 """
 
 import argparse
@@ -26,6 +26,7 @@ import av
 import pygame
 from pygame._sdl2 import controller as sdl_controller
 
+from menu import Menu
 from settings import Settings, key_label, pad_label
 
 TELLO_ADDR = ("192.168.10.1", 8889)
@@ -67,32 +68,6 @@ CTRL_BUTTONS = {
 
 FLIP_DIRS = {"up": "f", "down": "b", "left": "l", "right": "r"}
 MOVE_FLIPS = {"forward": "f", "back": "b", "left": "l", "right": "r"}
-
-
-def help_rows(settings):
-    """(what, keyboard, gamepad) rows describing the current bindings."""
-    k = {a: key_label(s) for a, s in settings["keys"].items()}
-    p = {a: pad_label(b) for a, b in settings["pad"].items()}
-    move = settings["flight"]["move_stick"].title()
-    other = "Right" if move == "Left" else "Left"
-    precision = "L2" + (f" / {p['precision']}" if settings["pad"]["precision"] else "")
-    return [
-        ("Forward / back / sideways", f"{k['forward']} {k['left']} {k['back']} {k['right']}", f"{move} stick"),
-        ("Climb / descend", f"{k['up']} / {k['down']}", f"{other} stick up / down"),
-        ("Turn", f"{k['turn_left']} / {k['turn_right']}", f"{other} stick left / right"),
-        ("Precision (hold)", k["precision"], precision),
-        ("Take off", k["takeoff"], p["takeoff"]),
-        ("Land", k["land"], p["land"]),
-        ("Speed mode", f"{k['speed_slow']} {k['speed_normal']} {k['speed_fast']}"
-                       + (f" / {k['speed']}" if settings["keys"]["speed"] else ""), p["speed"]),
-        ("Photo", k["photo"], p["photo"]),
-        ("Start / stop recording", k["record"], p["record"]),
-        ("Flip", f"{k['flip']} + move key", f"{p['flip']} + D-pad"),
-        ("EMERGENCY motor stop", k["emergency"], f"{p['emergency_1']} + {p['emergency_2']}"),
-        ("Help", k["help"], p["menu"]),
-        ("Fullscreen", k["fullscreen"], "-"),
-        ("Quit (lands first)", k["quit"], "-"),
-    ]
 
 
 class Tello:
@@ -438,7 +413,7 @@ class App:
         self.video = Video(self.tello.log)
         self.pad = Gamepad()
         self.speed_idx = 1
-        self.show_help = False
+        self.menu = Menu(self)
         self.sticks = (0.0, 0.0, 0.0, 0.0)  # roll, pitch, throttle, yaw (-1..1, after scaling)
         self.last_rc = 0.0
         self.landing = False
@@ -544,7 +519,15 @@ class App:
         self.tello.log(f"Speed: {SPEED_NAMES[self.speed_idx].upper()}")
 
     def toggle_help(self):
-        self.show_help = not self.show_help
+        self.menu.toggle("Help")
+
+    def toggle_settings(self):
+        self.menu.toggle("Keyboard")
+
+    def on_setting_changed(self, section, key):
+        stream_keys = (None, "resolution", "stream_fps", "bitrate")
+        if section == "power" and key in stream_keys and self.tello.session:
+            threading.Thread(target=self.tello.apply_stream_settings, daemon=True).start()
 
     def photo(self):
         if not self.frame_surface:
@@ -577,6 +560,8 @@ class App:
         emergency = {pad["emergency_1"], pad["emergency_2"]} - {None}
         if b in emergency and emergency <= self.pad.held:
             return self.emergency()
+        if self.menu.is_open:
+            return self.menu.handle_pad(b)
         if b in FLIP_DIRS and pad["flip"] in self.pad.held:
             return self.flip(FLIP_DIRS[b])
         actions = {"takeoff": self.takeoff, "land": self.land, "speed": self.cycle_speed,
@@ -588,8 +573,11 @@ class App:
     def on_key(self, ev):
         keys = self.settings["keys"]
         sc = ev.scancode
-        if sc == keys["emergency"]:
+        if sc == keys["emergency"] and not self.menu.capture:
             self.emergency()
+            return True
+        if self.menu.is_open:
+            self.menu.handle_key(ev)
             return True
         if keys["flip"] in self.held_scans:
             for action, d in MOVE_FLIPS.items():
@@ -601,7 +589,8 @@ class App:
         actions = {"takeoff": self.takeoff, "land": self.land, "speed": self.cycle_speed,
                    "speed_slow": lambda: self.cycle_speed(0), "speed_normal": lambda: self.cycle_speed(1),
                    "speed_fast": lambda: self.cycle_speed(2), "photo": self.photo,
-                   "record": self.toggle_record, "help": self.toggle_help, "fullscreen": self.toggle_fullscreen}
+                   "record": self.toggle_record, "help": self.toggle_help, "settings": self.toggle_settings,
+                   "fullscreen": self.toggle_fullscreen}
         for action, fn in actions.items():
             if keys[action] == sc:
                 fn()
@@ -622,7 +611,8 @@ class App:
                                  else self._swapped(self.pad.axes()))
         s = lambda v: shape(v, fl["deadzone"], fl["expo"])
         roll, pitch, throttle, yaw = s(lx), -s(ly), -s(ry), s(rx)
-        down = lambda action: keys[action] is not None and keys[action] in held
+        # the arrow keys etc. drive the menu while it's open, so only the pad flies then
+        down = lambda action: not self.menu.is_open and keys[action] is not None and keys[action] in held
         if not down("flip"):
             roll += down("right") - down("left")
             pitch += down("forward") - down("back")
@@ -753,8 +743,8 @@ class App:
         if self.land_failed and t.flying:
             self.draw_land_failed()
 
-        if self.show_help:
-            self.draw_help()
+        if self.menu.is_open:
+            self.menu.draw()
         elif hud["help_hint"]:
             self.text(f"Press {self.help_keys()} for help", (sw // 2, sh - 6), (150, 150, 150),
                       self.font_small, "midbottom")
@@ -839,22 +829,6 @@ class App:
         pygame.draw.line(self.screen, (80, 80, 80), r.midtop, r.midbottom)
         pygame.draw.circle(self.screen, (120, 190, 255), (center[0] + x * 40, center[1] - y * 40), 7)
 
-    def draw_help(self):
-        sw, sh = self.screen.get_size()
-        rows = help_rows(self.settings)
-        box = pygame.Rect(0, 0, 720, 60 + 22 * len(rows))
-        box.center = (sw // 2, sh // 2)
-        self.panel(box, 215)
-        y = box.top + 15
-        for x, head in ((20, "CONTROLS"), (300, "KEYBOARD"), (500, "GAMEPAD")):
-            self.text(head, (box.left + x, y), (120, 190, 255))
-        y += 32
-        for what, kb, pad in rows:
-            self.text(what, (box.left + 20, y), font=self.font_small)
-            self.text(kb, (box.left + 300, y), (240, 200, 60), self.font_small)
-            self.text(pad, (box.left + 500, y), (240, 200, 60), self.font_small)
-            y += 22
-
     # ---- main loop -----------------------------------------------------------
 
     def run(self):
@@ -875,6 +849,9 @@ class App:
                     self.held_scans.discard(ev.scancode)
                 elif ev.type == pygame.WINDOWFOCUSLOST:
                     self.held_scans.clear()
+                elif ev.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEWHEEL):
+                    if self.menu.is_open:
+                        self.menu.handle_mouse(ev)
                 elif ev.type == pygame.WINDOWMINIMIZED:
                     minimized = True
                 elif ev.type in (pygame.WINDOWRESTORED, pygame.WINDOWMAXIMIZED, pygame.WINDOWSHOWN):

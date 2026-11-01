@@ -137,3 +137,29 @@ def key_label(scancode):
 
 def pad_label(button):
     return PAD_LABELS.get(button, "-") if button else "-"
+
+
+def help_rows(settings):
+    """(what, keyboard, gamepad) rows describing the current bindings."""
+    k = {a: key_label(s) for a, s in settings["keys"].items()}
+    p = {a: pad_label(b) for a, b in settings["pad"].items()}
+    move = settings["flight"]["move_stick"].title()
+    other = "Right" if move == "Left" else "Left"
+    precision = "L2" + (f" / {p['precision']}" if settings["pad"]["precision"] else "")
+    return [
+        ("Forward / back / sideways", f"{k['forward']} {k['left']} {k['back']} {k['right']}", f"{move} stick"),
+        ("Climb / descend", f"{k['up']} / {k['down']}", f"{other} stick up / down"),
+        ("Turn", f"{k['turn_left']} / {k['turn_right']}", f"{other} stick left / right"),
+        ("Precision (hold)", k["precision"], precision),
+        ("Take off", k["takeoff"], p["takeoff"]),
+        ("Land", k["land"], p["land"]),
+        ("Speed mode", f"{k['speed_slow']} {k['speed_normal']} {k['speed_fast']}"
+                       + (f" / {k['speed']}" if settings["keys"]["speed"] else ""), p["speed"]),
+        ("Photo", k["photo"], p["photo"]),
+        ("Start / stop recording", k["record"], p["record"]),
+        ("Flip", f"{k['flip']} + move key", f"{p['flip']} + D-pad"),
+        ("EMERGENCY motor stop", k["emergency"], f"{p['emergency_1']} + {p['emergency_2']}"),
+        ("Help / settings", f"{k['help']} / {k['settings']}", p["menu"]),
+        ("Fullscreen", k["fullscreen"], "-"),
+        ("Quit (lands first)", k["quit"], "-"),
+    ]
