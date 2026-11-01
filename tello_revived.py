@@ -439,6 +439,7 @@ class App:
         self.land_failed = False
         self.auto_landed = False
         self.takeoff_until = 0.0
+        self.flip_until = 0.0
         self.quit_after_land = False
         self.held_scans = set()
         self.last_input = "pad"  # which device the button guide shows
@@ -529,8 +530,24 @@ class App:
         self.tello.log("EMERGENCY - motors stopped")
 
     def flip(self, d):
-        self.tello.log(f"Flip {d}")
-        self.tello.send(f"flip {d}")
+        name = {"f": "forward", "b": "back", "l": "left", "r": "right"}[d]
+        bat = self.tello.state.get("bat", 0)
+        if not self.tello.flying:
+            return self.tello.log("Flips only work in the air")
+        if bat <= 50:
+            return self.tello.log(f"No flip: battery {bat:.0f}% - the Tello only flips above 50%")
+        if time.monotonic() < self.flip_until:
+            return  # one at a time
+        self.tello.log(f"Flip {name}")
+        self.flip_until = time.monotonic() + 4.0  # no hover rc while it flips
+        threading.Thread(target=self._do_flip, args=(d, name), daemon=True).start()
+
+    def _do_flip(self, d, name):
+        reply = self.tello.query(f"flip {d}", 4.0)
+        self.flip_until = time.monotonic() + 0.3  # the drone answers once the flip is done
+        if reply != "ok":
+            self.tello.log(f"Drone refused the flip {name}: {reply or 'no reply'}"
+                           f" (battery {self.tello.state.get('bat', 0):.0f}%)")
 
     def cycle_speed(self, idx=None):
         self.speed_idx = (self.speed_idx + 1) % len(SPEED_NAMES) if idx is None else idx
@@ -677,8 +694,8 @@ class App:
         if pause_for_landing and not idle:
             self.landing = False
             self.tello.log("Landing cancelled by stick input")
-        if idle and (pause_for_landing or now < self.takeoff_until):
-            return  # don't let rc interrupt takeoff / landing
+        if idle and (pause_for_landing or now < self.takeoff_until or now < self.flip_until):
+            return  # don't let rc interrupt takeoff / landing / a flip
         if self.tello.connected:
             top = self.speed_limit()
             self.tello.send("rc " + " ".join(str(int(round(v * top))) for v in self.sticks))
