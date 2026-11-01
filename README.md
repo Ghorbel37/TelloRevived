@@ -1,24 +1,103 @@
+<p align="center"><img src="assets/logo.png" width="128" alt="Tello Revived logo"></p>
+
 # TelloRevived
 
-Fly a Tello from the PC with a PS3 controller (DsHidMini) or the keyboard. You get a live video feed and a HUD.
+Fly a Ryze/DJI Tello from your PC with a PS3 controller (via DsHidMini) or the keyboard. You get a big live video feed, a flight HUD, photo and video recording, and a settings screen where everything can be changed.
 
-## Run
+![Flying with the HUD](docs/screenshots/flight.png)
+
+*Screenshots use a simulated camera image and telemetry. Run `tools\make_screenshots.py` to regenerate them.*
+
+## Features
+
+- **Live video** in a resizable window or fullscreen (F11).
+- **HUD:** battery, Wi-Fi signal, flight time, temperature, altitude, height above ground, speed, climb rate, heading, a horizon line, and stick positions. Each element can be turned off.
+- **Gamepad and keyboard at the same time.** Keys follow their physical position, so `WASD` is `ZQSD` on AZERTY keyboards.
+- **Settings screen.** Rebind every key and pad button, swap the sticks, adjust speeds and stick feel, change landing behaviour, and pick battery-saving options. Everything is saved to `config.json`.
+- **Photos and recordings** are saved to `media\`. Recordings are `.mp4` files of the drone's original stream, with no re-encoding.
+- **Landing help:** optional automatic retries, and a warning with instructions if landing keeps failing.
+- **Battery saving:** video only while flying or off, lower stream quality, auto-land at a battery level, and a lower app frame rate.
+
+## Setup
 
 1. Turn on the Tello and connect the PC's Wi-Fi to `TELLO-XXXXXX`.
-2. Double-click `run.bat`. It creates `.venv` the first time if it's missing.
-3. On the first run, Windows Firewall will ask about Python. Allow it on **Public** networks, because Windows treats the Tello's Wi-Fi as public. If you don't, there will be no video and no telemetry.
+2. Double-click `run.bat`. The first time, it creates `.venv` and installs `pygame-ce`, `av` and `numpy`.
+3. On the first run, Windows Firewall asks about Python. Allow it on **Public** networks, because Windows treats the Tello's Wi-Fi as public. If you don't, there will be no video and no telemetry.
 
-Press **H** (or **Start** / **PS** on the pad) to see the controls. Photos and recordings are saved to `media\`. Recordings are saved as `.mp4` without re-encoding, so they keep the drone's original quality.
+Press **H** or **Start** for the controls and **O** for settings.
 
-## Controller
+## Default controls
 
-- DsHidMini in **SDF** or **XInput** mode works with SDL's standard mapping, and the app uses it automatically.
-- If the top bar shows your pad as `(raw)`, run `run.bat --joytest`. Move each stick and press each button, then put the numbers it shows into `RAW_MAP` at the top of `tello_revived.py`.
-- Stick feel is set by `DEADZONE`, `EXPO`, `SPEED_MODES` and `PRECISION_SCALE` in the same file.
+| | Keyboard | Gamepad |
+|---|---|---|
+| Forward / back / sideways | `W A S D` (`Z Q S D` on AZERTY) | Left stick |
+| Climb / descend | `Up` / `Down` | Right stick up / down |
+| Turn | `Left` / `Right` | Right stick left / right |
+| Precision (slow, hold) | `Left Shift` | `L2` (analog) |
+| Take off / land | `T` / `L` | Triangle / Cross |
+| Speed mode | `1` `2` `3` | Circle (cycles) |
+| Photo / record | `P` / `R` | R1 / Square |
+| Flip | `Left Ctrl` + move key | L1 + D-pad |
+| **Emergency motor stop** | `Backspace` | **Select + Start** |
+| Help / settings | `H` / `O` | Start |
+| Fullscreen / quit | `F11` / `Esc` | |
+
+To swap which stick moves and which climbs and turns, go to **Settings → Flight → Move with**.
+
+## Settings screen
+
+| Help | Keyboard |
+|---|---|
+| ![Help](docs/screenshots/menu_help.png) | ![Keyboard bindings](docs/screenshots/menu_keyboard.png) |
+| **Flight** | **Video & Power** |
+| ![Flight settings](docs/screenshots/menu_flight.png) | ![Video and power settings](docs/screenshots/menu_video.png) |
+
+Controls inside the settings screen:
+
+- **Keyboard:** `Up`/`Down` to move, `Left`/`Right` to change a value, `Enter` to edit, `Del` to clear a binding, `Tab` to switch page, `Esc` to close.
+- **Gamepad:** D-pad, Cross to edit, Square to clear, L1/R1 to switch page, Circle to close.
+- **Mouse:** click a value. Click its left half, or right-click, to go back.
+
+To rebind something, select it and press the new key or button. A red value means two actions share it. While the settings screen is open, only the gamepad flies the drone, and the emergency stop still works.
+
+## Landing
+
+By default, landing sends a single `land` command, as in the original app. The app then watches the descent. If the drone stops descending, that try counts as failed. After **Failed landings before warning** tries (3 by default) you get this warning:
+
+![Landing failed warning](docs/screenshots/landing_failed.png)
+
+In that case, fly it down slowly yourself. When it's just above the ground, use the emergency stop.
+
+Turn on **Settings → Flight → Retry landing automatically** if you want the app to keep resending `land` for you. It also stops stick commands while landing, because they can cancel a landing. Moving a stick cancels the automatic landing.
+
+## Saving battery
+
+All of these are on the **Video & Power** page:
+
+- **Video stream: Only while flying / Off** stops the camera stream when you don't need it.
+- **Stream resolution / frame rate / bitrate** lower the stream quality. These need Tello firmware with SDK 3.0. Older drones show "not accepted" and keep their defaults.
+- **Auto-land at battery** lands once per flight when the battery reaches that level.
+- **App frame rate** lowers how often the window is redrawn, which saves laptop battery. Nothing is drawn while the window is minimised.
+
+## Controller notes
+
+- DsHidMini in **SDF** or **XInput** mode works with SDL's standard mapping.
+- In XInput mode, Windows grabs the PS button for the Xbox Game Bar. That's why Start opens help and settings by default. To stop this, turn off the Game Bar's controller button in Windows Settings → Gaming → Xbox Game Bar.
+- If the top bar shows your pad as `(raw)`, run `run.bat --joytest`, then put the axis and button numbers into `RAW_MAP` in `tello_revived.py`.
 
 ## Safety
 
-- **Select + Start** or **Backspace** stops the motors immediately. The drone will fall.
-- If the pad disconnects, or you release everything, the drone hovers.
-- If you quit while flying, the app sends `land` first.
+- The **emergency stop cuts the motors immediately, and the drone falls.** Use it only when the drone is very low, or when something is going wrong.
+- If the pad disconnects or you let go of everything, the drone hovers.
+- Quitting while flying lands first. Press the quit key again to quit right away.
 - Flips need more than 50% battery.
+
+## Project layout
+
+| File | What it is |
+|---|---|
+| `tello_revived.py` | The app: drone link, video, input, HUD |
+| `menu.py` | Help and settings screen |
+| `settings.py` | Defaults, `config.json` loading and saving, key and button names |
+| `assets/make_logo.py` | Draws `assets/logo.png` and the window icon |
+| `tools/make_screenshots.py` | Renders the README screenshots without a drone |
