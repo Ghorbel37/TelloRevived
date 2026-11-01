@@ -32,8 +32,37 @@ jobs:
       - name: Install
         run: uv sync --locked --group build
 
+      # Windows: a minimal FFmpeg (tools/build_ffmpeg.sh) replaces the full one PyAV ships,
+      # which makes the exe about 18 MB instead of 42 MB. It is cached until the version changes.
+      - name: FFmpeg version PyAV uses (Windows)
+        if: runner.os == 'Windows'
+        id: ffmpeg
+        shell: bash
+        run: echo "version=$(uv run python -c 'import av; print(av.ffmpeg_version_info)')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        if: runner.os == 'Windows'
+        id: ffmpeg-cache
+        with:
+          path: build/ffmpeg-slim
+          key: ffmpeg-slim-${{ steps.ffmpeg.outputs.version }}-${{ hashFiles('tools/build_ffmpeg.sh') }}
+
+      - uses: msys2/setup-msys2@v2
+        if: runner.os == 'Windows' && steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-nasm make diffutils tar xz curl
+
+      - name: Build the minimal FFmpeg (Windows)
+        if: runner.os == 'Windows' && steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: tools/build_ffmpeg.sh ${{ steps.ffmpeg.outputs.version }} build/ffmpeg-slim
+
       - name: Build
-        run: uv run python tools/build.py
+        shell: bash
+        run: uv run python tools/build.py ${{ runner.os == 'Windows' && '--slim-ffmpeg build/ffmpeg-slim' || '' }}
 
       - name: Self-test (Windows)
         if: runner.os == 'Windows'

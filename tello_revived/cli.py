@@ -8,6 +8,8 @@ the controls and O for settings; everything is saved in config.json.
 """
 
 import argparse
+import tempfile
+from pathlib import Path
 
 import av
 import pygame
@@ -17,7 +19,8 @@ from tello_revived import VERSION, drone, labels
 from tello_revived.app import App
 from tello_revived.hud import MONO
 from tello_revived.labels import key_label
-from tello_revived.paths import ICON_PATH
+from tello_revived.paths import ICON_PATH, resource_dir
+from tello_revived.video import remux_to_mp4
 
 
 def main():
@@ -61,11 +64,25 @@ def message_window(lines):
         clock.tick(20)
 
 
+def check_video():
+    """Decode the bundled 5-frame clip, scale a frame and save the clip as mp4: every FFmpeg part we use."""
+    clip = resource_dir() / "assets" / "selftest.h264"
+    with av.open(str(clip), format="h264") as container:
+        frames = list(container.decode(video=0))
+    assert len(frames) == 5, f"decoded {len(frames)} of 5 frames"
+    rgb = frames[-1].reformat(width=320, height=240, format="rgb24")
+    assert rgb.planes[0].line_size >= 320 * 3
+    with tempfile.TemporaryDirectory() as tmp:
+        mp4 = Path(tmp) / "selftest.mp4"
+        remux_to_mp4(clip, mp4)
+        assert mp4.stat().st_size > clip.stat().st_size
+
+
 def selftest():
-    """Start the app, draw a few frames and check the H.264 decoder, then exit (used by the builds)."""
+    """Start the app, draw a few frames and check the video path, then exit (used by the builds)."""
     drone.CMD_PORT = drone.STATE_PORT = 0  # any free port, so it runs next to a real session
     try:
-        av.CodecContext.create("h264", "r")
+        check_video()
         assert ICON_PATH.exists(), f"missing {ICON_PATH}"
         key_label(pygame.KSCAN_UP)
         if not labels._sdl:

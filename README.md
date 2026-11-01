@@ -156,6 +156,17 @@ uv sync --group build
 uv run python tools/build.py
 ```
 
-The result is in `dist/`. `TelloRevived --selftest` starts the app without a drone, draws a few frames and exits; the GitHub workflow runs it on every build.
+The result is in `dist/`.
+
+The Windows release uses a minimal FFmpeg with only what the app needs (H.264 decoding, UDP input, mp4 saving, frame scaling), which makes the exe about 18 MB instead of 42 MB. To build it yourself you need a MinGW gcc, nasm and make, for example from MSYS2's UCRT64 shell:
+
+```
+tools/build_ffmpeg.sh 9.0.2 build/ffmpeg-slim
+uv run python tools/build.py --slim-ffmpeg build/ffmpeg-slim
+```
+
+The version must match the FFmpeg that PyAV was built with (`uv run python -c "import av; print(av.ffmpeg_version_info)"`).
+
+`TelloRevived --selftest` starts the app without a drone, decodes and saves a short test clip, draws a few frames and exits; the GitHub workflow runs it on every build.
 
 To publish a release, push a tag such as `v1.0`. The workflow builds all four versions and attaches them to a GitHub release.

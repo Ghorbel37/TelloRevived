@@ -120,7 +120,9 @@ def remux_to_mp4(src, dst, fps=30):
     tb = Fraction(1, fps)
     with av.open(str(src), format="h264") as inp, av.open(str(dst), "w") as out:
         in_stream = inp.streams.video[0]
-        out_stream = out.add_stream_from_template(in_stream)
+        # opaque: copy the codec settings as they are, so no H.264 encoder is needed (the slim
+        # FFmpeg in the standalone builds only has the decoder)
+        out_stream = out.add_stream_from_template(in_stream, opaque=True)
         n = 0
         for packet in inp.demux(in_stream):
             if not packet.size:
