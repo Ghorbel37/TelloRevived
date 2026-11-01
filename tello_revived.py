@@ -83,6 +83,7 @@ class Tello:
         self.state_sock = self._udp(STATE_PORT)
         self.replies = queue.Queue()
         self.stream_on = None  # what we last told the drone (None = unknown)
+        self.stream_settings_ok = None  # False once the drone rejects setresolution etc. (pre SDK 3.0)
         self.query_lock = threading.Lock()
         self.awaiting = False
         self.state = {}
@@ -147,7 +148,8 @@ class Tello:
                 data, _ = self.sock.recvfrom(1024)
             except OSError:
                 continue
-            reply = data.decode(errors="replace").strip()
+            # the Tello sometimes pads replies with NUL bytes
+            reply = data.decode(errors="replace").replace(chr(0), "").strip()
             if self.awaiting:
                 self.replies.put(reply)
             else:
@@ -184,10 +186,16 @@ class Tello:
             cmds.append(f"setfps {p['stream_fps']}")
         if p["bitrate"] != "default":
             cmds.append(f"setbitrate {0 if p['bitrate'] == 'auto' else p['bitrate']}")
+        if not cmds or self.stream_settings_ok is False:
+            return  # nothing to set, or this drone already said it can't
         for cmd in cmds:
             reply = self.query(cmd, 2.0)
             if reply != "ok":
-                self.log(f"'{cmd}' not accepted ({reply or 'no reply'}) - needs Tello SDK 3.0 firmware")
+                self.stream_settings_ok = False
+                self.log(f"This Tello can't change stream quality ('{cmd}': {reply or 'no reply'}) - "
+                         "needs SDK 3.0 firmware, using its defaults")
+                return
+        self.stream_settings_ok = True
 
     def _link_loop(self):
         last_wifi = last_stream = 0.0
@@ -664,6 +672,7 @@ class App:
 
     def text(self, s, pos, color=(235, 235, 235), font=None, anchor="topleft"):
         font = font or self.font
+        s = s.replace(chr(0), "")  # pygame can't render NUL
         img = font.render(s, True, color)
         rect = img.get_rect(**{anchor: pos})
         self.screen.blit(font.render(s, True, (0, 0, 0)), rect.move(2, 2))

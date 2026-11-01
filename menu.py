@@ -6,6 +6,7 @@ import pygame
 
 from settings import KEY_ACTIONS, PAD_ACTIONS, help_rows, key_label, pad_label
 
+STREAM_KEYS = ("resolution", "stream_fps", "bitrate")  # SDK 3.0 only
 TABS = ["Help", "Keyboard", "Gamepad", "HUD", "Flight", "Video & Power"]
 
 ACCENT = (120, 190, 255)
@@ -89,8 +90,8 @@ class Menu:
             Row("choice", "Auto-land at battery", "power", "auto_land_battery",
                 [(0, "Off")] + [(n, f"{n}%") for n in (10, 15, 20, 25, 30)]),
             Row("number", "Low battery warning", "power", "low_battery_warning", lo=5, hi=50, step=5, fmt="{}%"),
-            Row("info", "* needs Tello SDK 3.0 firmware - older drones say \"not accepted\""),
-            Row("info", "Lower video settings and \"only while flying\" save drone battery;"),
+            Row("info", "* needs Tello SDK 3.0 firmware; most Tellos don't have it and keep their defaults"),
+            Row("info", "\"Only while flying\" keeps the drone cool on the ground and saves battery;"),
             Row("info", "a lower app frame rate saves PC battery."),
             reset("power", "video & power"),
         ]
@@ -271,6 +272,8 @@ class Menu:
         if row.kind == "choice":
             cur = s[row.section][row.key]
             label = next((t for v, t in row.options if v == cur), str(cur))
+            if row.key in STREAM_KEYS and self.app.tello.stream_settings_ok is False:
+                return f"<  {label}  >  not supported", DIM
             return f"<  {label}  >", YELLOW
         if row.kind == "number":
             v = s[row.section][row.key]
