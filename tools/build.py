@@ -3,12 +3,12 @@
     uv sync --group build
     uv run python tools/build.py
 
-Windows: dist/TelloRevived-windows-x64.exe       (single exe)
-Linux:   dist/TelloRevived-linux-x64.tar.gz      (single binary inside)
-macOS:   dist/TelloRevived-macos-<arch>.zip      (Tello Revived.app inside)
+Windows: dist/TelloRevived-v<version>-windows-x64-portable.exe
+Linux:   dist/TelloRevived-v<version>-linux-x64-portable            (the program itself)
+macOS:   dist/TelloRevived-v<version>-macos-<arch>-portable.dmg     (Tello Revived.app inside)
 
-Windows only, optional: --slim-ffmpeg DIR uses a minimal FFmpeg (built by tools/build_ffmpeg.sh, about
-6 MB) instead of the full one PyAV ships (about 65 MB unpacked).
+Optional: --slim-ffmpeg DIR uses a minimal FFmpeg (built by tools/build_ffmpeg.sh, a few MB) instead
+of the full one PyAV ships (40-65 MB unpacked).
 """
 import argparse
 import os
@@ -17,10 +17,11 @@ import re
 import shutil
 import subprocess
 import sys
-import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from tello_revived import VERSION  # noqa: E402
 DIST = ROOT / "dist"
 NAME = "TelloRevived"
 
@@ -30,39 +31,58 @@ def arch():
     return {"amd64": "x64", "x86_64": "x64", "aarch64": "arm64"}.get(m, m)
 
 
-def stage_slim_av(ffmpeg_bin):
-    """Copy PyAV into build/slim-av, pointed at the minimal FFmpeg DLLs in ffmpeg_bin.
+FFMPEG_LIBS = "avcodec|avformat|avutil|avdevice|avfilter|swscale|swresample"
 
-    PyAV's modules load its FFmpeg DLLs by hashed names (avcodec-63-<hash>.dll). Each of those
-    names is overwritten with the plain, shorter name (avcodec-63.dll) padded with zero bytes,
-    so nothing else in the file moves, and the plain-named DLLs go next to it.
+
+def stage_slim_av(ffmpeg_dir):
+    """Copy PyAV into build/slim-av, using the minimal FFmpeg in ffmpeg_dir instead of its own.
+
+    Windows and Linux: PyAV's modules load FFmpeg by hashed names (avcodec-63-<hash>.dll,
+    libavcodec-<hash>.so.63.1.102). Each of those is overwritten with the plain, shorter name
+    (avcodec-63.dll, libavcodec.so.63) padded with zero bytes, so nothing else in the file moves.
+    macOS: the names are already plain (libavcodec.63.1.102.dylib), so the files are just swapped.
     """
     import av
 
-    if av.ffmpeg_version_info not in ffmpeg_bin.joinpath("VERSION").read_text().split():
-        sys.exit(f"{ffmpeg_bin} isn't FFmpeg {av.ffmpeg_version_info}, the version PyAV {av.__version__} uses")
+    if av.ffmpeg_version_info not in ffmpeg_dir.joinpath("VERSION").read_text().split():
+        sys.exit(f"{ffmpeg_dir} isn't FFmpeg {av.ffmpeg_version_info}, the version PyAV {av.__version__} uses")
     site = Path(av.__file__).parent.parent
-    pattern = re.compile(r"^(avcodec|avformat|avutil|avdevice|avfilter|swscale|swresample)-(\d+)-[0-9a-f]{32}\.dll$")
-    renames = {}
-    for dll in (site / "av.libs").iterdir():
-        if m := pattern.match(dll.name):
-            short = f"{m[1]}-{m[2]}.dll"
-            assert (ffmpeg_bin / short).exists(), f"{short} missing from {ffmpeg_bin}"
-            renames[dll.name.encode()] = short.encode()
-
     stage = ROOT / "build" / "slim-av"
     shutil.rmtree(stage, ignore_errors=True)
     shutil.copytree(site / "av", stage / "av", ignore=shutil.ignore_patterns("__pycache__"))
-    for module in (stage / "av").rglob("*.pyd"):
+
+    if sys.platform == "darwin":
+        libs = stage / "av" / ".dylibs"
+        for old in libs.iterdir():  # PyAV's FFmpeg and the codec libraries only it needed
+            old.unlink()
+        for lib in ffmpeg_dir.glob("*.dylib"):
+            shutil.copy2(lib, libs)
+        return stage
+
+    if sys.platform == "win32":
+        hashed = re.compile(rf"^({FFMPEG_LIBS})-(\d+)-[0-9a-f]{{32}}\.dll$")
+        plain, modules = "{0}-{1}.dll", "*.pyd"
+    else:
+        hashed = re.compile(rf"^lib({FFMPEG_LIBS})-[0-9a-f]{{8}}\.so\.(\d+)[.\d]*$")
+        plain, modules = "lib{0}.so.{1}", "*.so"
+    renames = {}
+    for lib in (site / "av.libs").iterdir():
+        if m := hashed.match(lib.name):
+            short = plain.format(m[1], m[2])
+            assert (ffmpeg_dir / short).exists(), f"{short} missing from {ffmpeg_dir}"
+            renames[lib.name.encode()] = short.encode()
+    assert len(renames) == 7, f"expected PyAV's 7 FFmpeg libraries, found {sorted(renames)}"
+    for module in (stage / "av").rglob(modules):
         data = module.read_bytes()
         for old, short in renames.items():
             data = data.replace(old, short.ljust(len(old), bytes(1)))
-        leftover = re.findall(rb"[\w.+-]+-[0-9a-f]{32}\.dll", data)
+        leftover = [old for old in renames if old in data]
         assert not leftover, f"{module} still needs {leftover}"
         module.write_bytes(data)
     (stage / "av.libs").mkdir()
-    for dll in ffmpeg_bin.glob("*.dll"):  # FFmpeg plus the compiler's thread library
-        shutil.copy2(dll, stage / "av.libs")
+    for lib in ffmpeg_dir.iterdir():  # FFmpeg (plus, on Windows, the compiler's thread library)
+        if lib.name != "VERSION":
+            shutil.copy2(lib, stage / "av.libs")
     return stage
 
 
@@ -84,9 +104,10 @@ def pyinstaller(*args, slim=None):
     env = dict(os.environ)
     if slim:
         # the staged PyAV is found before the installed one, our hook replaces PyInstaller's,
-        # and the minimal FFmpeg DLLs are found on PATH
+        # and the minimal FFmpeg libraries are found as PyAV's dependencies
         cmd[3:3] = ["--paths", str(slim), "--additional-hooks-dir", str(ROOT / "tools" / "pyinstaller_hooks")]
-        env["PATH"] = str(slim / "av.libs") + os.pathsep + env["PATH"]
+        for var in ("PATH", "LD_LIBRARY_PATH"):
+            env[var] = os.pathsep.join(filter(None, [str(slim / "av.libs"), env.get(var)]))
     subprocess.run(cmd, check=True, env=env)
     return DIST / "pyinstaller"
 
@@ -94,26 +115,26 @@ def pyinstaller(*args, slim=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--slim-ffmpeg", type=Path, metavar="DIR",
-                        help="folder with a minimal FFmpeg's DLLs and VERSION file (Windows)")
+                        help="folder from tools/build_ffmpeg.sh with a minimal FFmpeg")
     args = parser.parse_args()
     slim = stage_slim_av(args.slim_ffmpeg.resolve()) if args.slim_ffmpeg else None
     shutil.rmtree(DIST, ignore_errors=True)
+    base = f"{NAME}-v{VERSION}"
     if sys.platform == "win32":
         out = pyinstaller("--onefile", slim=slim) / f"{NAME}.exe"
-        final = DIST / f"{NAME}-windows-{arch()}.exe"
+        final = DIST / f"{base}-windows-{arch()}-portable.exe"
         out.replace(final)
     elif sys.platform == "darwin":
-        app = pyinstaller("--osx-bundle-identifier", "io.github.tellorevived") / f"{NAME}.app"
+        app = pyinstaller("--osx-bundle-identifier", "io.github.tellorevived", slim=slim) / f"{NAME}.app"
         app = app.rename(app.with_name("Tello Revived.app"))
-        final = DIST / f"{NAME}-macos-{arch()}.zip"
-        # ditto keeps the bundle's symlinks and permissions, unlike zipfile
-        subprocess.run(["ditto", "-c", "-k", "--keepParent", str(app), str(final)], check=True)
+        final = DIST / f"{base}-macos-{arch()}-portable.dmg"
+        # an .app is a folder; a disk image hands it out as one file (open it, drag the app anywhere)
+        subprocess.run(["hdiutil", "create", "-volname", "Tello Revived", "-srcfolder", str(app),
+                        "-format", "UDZO", "-ov", str(final)], check=True)
     else:
-        out = pyinstaller("--onefile") / NAME
-        final = DIST / f"{NAME}-linux-{arch()}.tar.gz"
-        with tarfile.open(final, "w:gz") as tar:
-            tar.add(out, arcname=f"{NAME}/{NAME}")
-            tar.add(ROOT / "README.md", arcname=f"{NAME}/README.md")
+        out = pyinstaller("--onefile", slim=slim) / NAME
+        final = DIST / f"{base}-linux-{arch()}-portable"
+        out.replace(final)
     print(f"built {final} ({final.stat().st_size / 1e6:.0f} MB)")
 
 
