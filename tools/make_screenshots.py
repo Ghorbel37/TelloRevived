@@ -95,7 +95,7 @@ for tab in ("Help", "Keyboard", "Gamepad", "Flight", "Video & Power"):
     if tab == "Keyboard":
         app.menu.sel = 10
     if tab == "Flight":
-        app.menu.sel = 7
+        app.menu.sel = 8
     shot("menu_" + tab.split()[0].lower())
 app.menu.close()
 

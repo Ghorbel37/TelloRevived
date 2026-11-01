@@ -67,7 +67,7 @@ While landing, or after a landing fails, the emergency stop is added to the fron
 | Help / settings | `H` / `O` | Start |
 | Fullscreen / quit | `F11` / `Esc` | |
 
-To swap which stick moves and which climbs and turns, go to **Settings → Flight → Move with**.
+To swap which stick moves and which climbs and turns, go to **Settings → Flight → Move with**. Set your drone under **Settings → Flight → Drone model** (Tello, Tello EDU or RoboMaster TT); settings your drone doesn't support are hidden.
 
 ## Settings screen
 
@@ -100,7 +100,7 @@ Turn on **Settings → Flight → Retry landing automatically** if you want the 
 All of these are on the **Video & Power** page:
 
 - **Video stream** is **Only while flying** by default, because the Tello gets very hot when it streams sitting on the ground. Choose **On** to see the camera before takeoff, or **Off** for no video at all.
-- **Stream resolution / frame rate / bitrate** lower the stream quality. These need Tello firmware with SDK 3.0, which most Tellos don't have. If yours doesn't, the app says so once, marks them "not supported" and the drone keeps its defaults.
+- **Stream resolution / frame rate / bitrate** lower the stream quality. Only the RoboMaster TT (SDK 3.0) supports them, so they only appear when **Settings → Flight → Drone model** is set to **RoboMaster TT**. A regular Tello (SDK 1.3) or Tello EDU (SDK 2.0) can't get them through a firmware update, and everything else in the app works on all three.
 - **Auto-land at battery** lands once per flight when the battery reaches that level.
 - **App frame rate** lowers how often the window is redrawn, which saves laptop battery. Nothing is drawn while the window is minimised.
 

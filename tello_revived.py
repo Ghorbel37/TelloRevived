@@ -27,7 +27,7 @@ import pygame
 from pygame._sdl2 import controller as sdl_controller
 
 from menu import Menu
-from settings import Settings, data_dir, key_label, pad_label, resource_dir
+from settings import Settings, data_dir, key_label, pad_label, resource_dir, stream_settings_supported
 
 TELLO_ADDR = ("192.168.10.1", 8889)
 CMD_PORT = 8889
@@ -179,6 +179,8 @@ class Tello:
     def apply_stream_settings(self):
         """Send the stream quality settings that aren't left at the drone's default."""
         p = self.settings["power"]
+        if not stream_settings_supported(self.settings):
+            return  # the user's model can't, so don't even ask
         cmds = []
         if p["resolution"] != "default":
             cmds.append(f"setresolution {p['resolution']}")
@@ -543,7 +545,7 @@ class App:
 
     def on_setting_changed(self, section, key):
         stream_keys = (None, "resolution", "stream_fps", "bitrate")
-        if section == "power" and key in stream_keys and self.tello.session:
+        if (section == "drone" or section == "power" and key in stream_keys) and self.tello.session:
             threading.Thread(target=self.tello.apply_stream_settings, daemon=True).start()
 
     def photo(self):

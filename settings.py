@@ -47,6 +47,9 @@ DEFAULTS = {
         "top_bar": True, "flight_data": True, "heading": True, "attitude": True,
         "sticks": True, "messages": True, "hint_bar": True, "video_fps": True,
     },
+    "drone": {
+        "model": "tello",           # tello / edu / tt - only the RoboMaster TT (SDK 3.0) can change stream quality
+    },
     "flight": {
         "move_stick": "left",
         "speed_slow": 30, "speed_normal": 60, "speed_fast": 100,
@@ -61,6 +64,14 @@ DEFAULTS = {
         "app_fps": 60, "auto_land_battery": 0, "low_battery_warning": 20,
     },
 }
+
+DRONE_MODELS = [("tello", "Tello"), ("edu", "Tello EDU"), ("tt", "RoboMaster TT")]
+
+
+def stream_settings_supported(settings):
+    """Only SDK 3.0 (RoboMaster TT) has setresolution / setfps / setbitrate."""
+    return settings["drone"]["model"] == "tt"
+
 
 KEY_ACTIONS = [
     ("forward", "Move forward"), ("back", "Move back"), ("left", "Move left"), ("right", "Move right"),

@@ -4,7 +4,8 @@ import time
 
 import pygame
 
-from settings import KEY_ACTIONS, PAD_ACTIONS, help_rows, key_label, pad_label
+from settings import (DRONE_MODELS, KEY_ACTIONS, PAD_ACTIONS, help_rows, key_label, pad_label,
+                      stream_settings_supported)
 
 STREAM_KEYS = ("resolution", "stream_fps", "bitrate")  # SDK 3.0 only
 TABS = ["Help", "Keyboard", "Gamepad", "HUD", "Flight", "Video & Power"]
@@ -60,6 +61,7 @@ class Menu:
             return [Row("toggle", label, "hud", k) for k, label in items] + [reset("hud", "HUD")]
         if name == "Flight":
             return [
+                Row("choice", "Drone model", "drone", "model", DRONE_MODELS),
                 Row("choice", "Move with", "flight", "move_stick",
                     [("left", "Left stick"), ("right", "Right stick")]),
                 Row("number", "Slow speed", "flight", "speed_slow", lo=5, hi=100, step=5, fmt="{}%"),
@@ -77,20 +79,24 @@ class Menu:
                 Row("toggle", "Land before quitting", "flight", "land_on_quit"),
                 reset("flight", "flight settings"),
             ]
-        return [
-            Row("choice", "Video stream", "power", "video",
-                [("on", "On"), ("flying", "Only while flying"), ("off", "Off")]),
+        stream = [
             Row("choice", "Stream resolution *", "power", "resolution",
                 [("default", "Drone default"), ("high", "High (720p)"), ("low", "Low (480p)")]),
             Row("choice", "Stream frame rate *", "power", "stream_fps",
                 [("default", "Drone default"), ("high", "High (30)"), ("middle", "Middle (15)"), ("low", "Low (5)")]),
             Row("choice", "Stream bitrate *", "power", "bitrate",
                 [("default", "Drone default"), ("auto", "Auto")] + [(str(n), f"{n} Mbps") for n in range(1, 6)]),
+        ] if stream_settings_supported(self.settings) else []
+        return [
+            Row("choice", "Video stream", "power", "video",
+                [("flying", "Only while flying"), ("on", "On"), ("off", "Off")]),
+            *stream,
             Row("choice", "App frame rate", "power", "app_fps", [(20, "20 fps"), (30, "30 fps"), (60, "60 fps")]),
             Row("choice", "Auto-land at battery", "power", "auto_land_battery",
                 [(0, "Off")] + [(n, f"{n}%") for n in (10, 15, 20, 25, 30)]),
             Row("number", "Low battery warning", "power", "low_battery_warning", lo=5, hi=50, step=5, fmt="{}%"),
-            Row("info", "* needs Tello SDK 3.0 firmware; most Tellos don't have it and keep their defaults"),
+            Row("info", "* RoboMaster TT only; if it still says \"not supported\", update its firmware"
+                if stream else "Stream quality settings: RoboMaster TT only (Flight > Drone model)"),
             Row("info", "\"Only while flying\" keeps the drone cool on the ground and saves battery;"),
             Row("info", "a lower app frame rate saves PC battery."),
             reset("power", "video & power"),
