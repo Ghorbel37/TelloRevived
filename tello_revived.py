@@ -5,6 +5,7 @@
     run.bat --joytest    show raw gamepad axis/button numbers (for RAW_MAP below)
 
 Connect the PC's Wi-Fi to the TELLO-XXXXXX network first. Press H in the app for the controls.
+Bindings and options are saved in config.json next to this file.
 """
 
 import argparse
@@ -25,6 +26,8 @@ import av
 import pygame
 from pygame._sdl2 import controller as sdl_controller
 
+from settings import Settings, key_label, pad_label
+
 TELLO_ADDR = ("192.168.10.1", 8889)
 CMD_PORT = 8889
 STATE_PORT = 8890
@@ -32,10 +35,7 @@ VIDEO_URL = "udp://0.0.0.0:11111?overrun_nonfatal=1&fifo_size=5000000"
 MEDIA_DIR = Path(__file__).resolve().parent / "media"
 
 RC_HZ = 20
-SPEED_MODES = [("SLOW", 30), ("NORMAL", 60), ("FAST", 100)]  # max rc value per mode
-DEADZONE = 0.08
-EXPO = 0.35            # 0 = linear sticks, 1 = fully cubic (softer around centre)
-PRECISION_SCALE = 0.3  # speed multiplier with L2 fully pressed / Shift held
+SPEED_NAMES = ["slow", "normal", "fast"]
 
 # Only used when SDL doesn't recognise the pad as a standard controller.
 # Run with --joytest to find the right numbers for your pad.
@@ -65,34 +65,33 @@ CTRL_BUTTONS = {
 }
 
 FLIP_DIRS = {"up": "f", "down": "b", "left": "l", "right": "r"}
-# Movement keys go by physical position (scancode), so WASD is ZQSD on AZERTY
-MOVE_SCANS = {pygame.KSCAN_W: "f", pygame.KSCAN_S: "b", pygame.KSCAN_A: "l", pygame.KSCAN_D: "r"}
-TAKEOFF_GRACE = 6.0  # seconds of no rc after takeoff, unless the sticks move
+MOVE_FLIPS = {"forward": "f", "back": "b", "left": "l", "right": "r"}
 
-HELP_LINES = [
-    ("GAMEPAD", ""),
-    ("Left stick", "forward / back, sideways"),
-    ("Right stick", "climb / descend, turn"),
-    ("Triangle / Cross", "take off / land"),
-    ("Circle", "cycle speed mode"),
-    ("L2 (analog)", "precision - slows everything down"),
-    ("R1 / Square", "photo / start-stop recording"),
-    ("L1 + D-pad", "flip"),
-    ("Select + Start", "EMERGENCY motor stop"),
-    ("Start or PS", "this help"),
-    ("", ""),
-    ("KEYBOARD", ""),
-    ("W A S D", "forward / left / back / right (Z Q S D on AZERTY)"),
-    ("Arrow up / down", "climb / descend"),
-    ("Arrow left / right", "turn"),
-    ("Shift (hold)", "precision"),
-    ("T / L", "take off / land"),
-    ("1 2 3", "speed mode"),
-    ("P / R", "photo / start-stop recording"),
-    ("Ctrl + W A S D", "flip"),
-    ("Backspace", "EMERGENCY motor stop"),
-    ("H / F11 / Esc", "help / fullscreen / quit (lands first)"),
-]
+
+def help_rows(settings):
+    """(what, keyboard, gamepad) rows describing the current bindings."""
+    k = {a: key_label(s) for a, s in settings["keys"].items()}
+    p = {a: pad_label(b) for a, b in settings["pad"].items()}
+    move = settings["flight"]["move_stick"].title()
+    other = "Right" if move == "Left" else "Left"
+    precision = "L2" + (f" / {p['precision']}" if settings["pad"]["precision"] else "")
+    return [
+        ("Forward / back / sideways", f"{k['forward']} {k['left']} {k['back']} {k['right']}", f"{move} stick"),
+        ("Climb / descend", f"{k['up']} / {k['down']}", f"{other} stick up / down"),
+        ("Turn", f"{k['turn_left']} / {k['turn_right']}", f"{other} stick left / right"),
+        ("Precision (hold)", k["precision"], precision),
+        ("Take off", k["takeoff"], p["takeoff"]),
+        ("Land", k["land"], p["land"]),
+        ("Speed mode", f"{k['speed_slow']} {k['speed_normal']} {k['speed_fast']}"
+                       + (f" / {k['speed']}" if settings["keys"]["speed"] else ""), p["speed"]),
+        ("Photo", k["photo"], p["photo"]),
+        ("Start / stop recording", k["record"], p["record"]),
+        ("Flip", f"{k['flip']} + move key", f"{p['flip']} + D-pad"),
+        ("EMERGENCY motor stop", k["emergency"], f"{p['emergency_1']} + {p['emergency_2']}"),
+        ("Help", k["help"], p["menu"]),
+        ("Fullscreen", k["fullscreen"], "-"),
+        ("Quit (lands first)", k["quit"], "-"),
+    ]
 
 
 class Tello:
@@ -389,12 +388,12 @@ class Gamepad:
         return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 
 
-def shape(v):
-    """Deadzone + expo for one stick axis."""
-    if abs(v) < DEADZONE:
+def shape(v, deadzone, expo):
+    """Deadzone + expo for one stick axis (expo 0 = linear, 1 = fully cubic)."""
+    if abs(v) < deadzone:
         return 0.0
-    v = math.copysign((abs(v) - DEADZONE) / (1 - DEADZONE), v)
-    v = (1 - EXPO) * v + EXPO * v ** 3
+    v = math.copysign((abs(v) - deadzone) / (1 - deadzone), v)
+    v = (1 - expo) * v + expo * v ** 3
     return max(-1.0, min(1.0, v))
 
 
@@ -404,6 +403,7 @@ class App:
         self.windowed_size = (960, 720)
         self.screen = pygame.display.set_mode(self.windowed_size, pygame.RESIZABLE)
         self.fullscreen = False
+        self.settings = Settings()
         self.tello = Tello()
         self.video = Video(self.tello.log)
         self.pad = Gamepad()
@@ -430,7 +430,7 @@ class App:
             return self.tello.log("Not connected")
         self.tello.log("Taking off")
         self.landing = False
-        self.takeoff_until = time.monotonic() + TAKEOFF_GRACE
+        self.takeoff_until = time.monotonic() + self.settings["flight"]["takeoff_pause"]
         self.tello.send("takeoff")
 
     def land(self):
@@ -476,8 +476,11 @@ class App:
         self.tello.send(f"flip {d}")
 
     def cycle_speed(self, idx=None):
-        self.speed_idx = (self.speed_idx + 1) % len(SPEED_MODES) if idx is None else idx
-        self.tello.log(f"Speed: {SPEED_MODES[self.speed_idx][0]}")
+        self.speed_idx = (self.speed_idx + 1) % len(SPEED_NAMES) if idx is None else idx
+        self.tello.log(f"Speed: {SPEED_NAMES[self.speed_idx].upper()}")
+
+    def toggle_help(self):
+        self.show_help = not self.show_help
 
     def photo(self):
         if not self.frame_surface:
@@ -506,72 +509,73 @@ class App:
     # ---- input ---------------------------------------------------------------
 
     def on_pad_button(self, b):
-        held = self.pad.held
-        if b in ("start", "select") and {"start", "select"} <= held:
-            self.emergency()
-        elif b in FLIP_DIRS and "l1" in held:
-            self.flip(FLIP_DIRS[b])
-        elif b == "triangle":
-            self.takeoff()
-        elif b == "cross":
-            self.land()
-        elif b == "circle":
-            self.cycle_speed()
-        elif b == "r1":
-            self.photo()
-        elif b == "square":
-            self.toggle_record()
-        elif b in ("ps", "start"):
-            self.show_help = not self.show_help
+        pad = self.settings["pad"]
+        emergency = {pad["emergency_1"], pad["emergency_2"]} - {None}
+        if b in emergency and emergency <= self.pad.held:
+            return self.emergency()
+        if b in FLIP_DIRS and pad["flip"] in self.pad.held:
+            return self.flip(FLIP_DIRS[b])
+        actions = {"takeoff": self.takeoff, "land": self.land, "speed": self.cycle_speed,
+                   "photo": self.photo, "record": self.toggle_record, "menu": self.toggle_help}
+        for action, fn in actions.items():
+            if pad[action] == b:
+                fn()
 
     def on_key(self, ev):
-        k, ctrl = ev.key, ev.mod & pygame.KMOD_CTRL
-        if ctrl and ev.scancode in MOVE_SCANS:
-            self.flip(MOVE_SCANS[ev.scancode])
-        elif k == pygame.K_BACKSPACE:
+        keys = self.settings["keys"]
+        sc = ev.scancode
+        if sc == keys["emergency"]:
             self.emergency()
-        elif k == pygame.K_t:
-            self.takeoff()
-        elif k == pygame.K_l:
-            self.land()
-        elif k in (pygame.K_1, pygame.K_2, pygame.K_3):
-            self.cycle_speed(k - pygame.K_1)
-        elif k == pygame.K_p:
-            self.photo()
-        elif k == pygame.K_r:
-            self.toggle_record()
-        elif k == pygame.K_h:
-            self.show_help = not self.show_help
-        elif k == pygame.K_F11:
-            self.toggle_fullscreen()
-        elif k == pygame.K_ESCAPE:
+            return True
+        if keys["flip"] in self.held_scans:
+            for action, d in MOVE_FLIPS.items():
+                if keys[action] == sc:
+                    self.flip(d)
+                    return True
+        if sc == keys["quit"]:
             return self.request_quit()
+        actions = {"takeoff": self.takeoff, "land": self.land, "speed": self.cycle_speed,
+                   "speed_slow": lambda: self.cycle_speed(0), "speed_normal": lambda: self.cycle_speed(1),
+                   "speed_fast": lambda: self.cycle_speed(2), "photo": self.photo,
+                   "record": self.toggle_record, "help": self.toggle_help, "fullscreen": self.toggle_fullscreen}
+        for action, fn in actions.items():
+            if keys[action] == sc:
+                fn()
         return True
 
     def request_quit(self):
         """Land before quitting; a second request quits right away."""
-        if self.quit_after_land or not self.tello.flying:
+        if self.quit_after_land or not self.tello.flying or not self.settings["flight"]["land_on_quit"]:
             return False
         self.quit_after_land = True
-        self.tello.log("Landing before quit (Esc again to quit now)")
+        self.tello.log(f"Landing before quit ({key_label(self.settings['keys']['quit'])} again to quit now)")
         self.land()
         return True
 
     def read_sticks(self):
-        lx, ly, rx, ry, l2, _ = self.pad.axes()
-        roll, pitch, throttle, yaw = shape(lx), -shape(ly), -shape(ry), shape(rx)
-        keys = pygame.key.get_pressed()
-        mods = pygame.key.get_mods()
-        if not mods & pygame.KMOD_CTRL:
-            held = {MOVE_SCANS[s] for s in self.held_scans if s in MOVE_SCANS}
-            roll += ("r" in held) - ("l" in held)
-            pitch += ("f" in held) - ("b" in held)
-        throttle += keys[pygame.K_UP] - keys[pygame.K_DOWN]
-        yaw += keys[pygame.K_RIGHT] - keys[pygame.K_LEFT]
-        precision = max(l2, 1.0 if mods & pygame.KMOD_SHIFT else 0.0)
-        scale = 1 - (1 - PRECISION_SCALE) * precision
+        fl, keys, held = self.settings["flight"], self.settings["keys"], self.held_scans
+        lx, ly, rx, ry, l2, _ = (self.pad.axes() if fl["move_stick"] == "left"
+                                 else self._swapped(self.pad.axes()))
+        s = lambda v: shape(v, fl["deadzone"], fl["expo"])
+        roll, pitch, throttle, yaw = s(lx), -s(ly), -s(ry), s(rx)
+        down = lambda action: keys[action] is not None and keys[action] in held
+        if not down("flip"):
+            roll += down("right") - down("left")
+            pitch += down("forward") - down("back")
+        throttle += down("up") - down("down")
+        yaw += down("turn_right") - down("turn_left")
+        precision = max(l2, 1.0 if down("precision") or self.settings["pad"]["precision"] in self.pad.held else 0.0)
+        scale = 1 - (1 - fl["precision"]) * precision
         clamp = lambda v: max(-1.0, min(1.0, v)) * scale
         self.sticks = (clamp(roll), clamp(pitch), clamp(throttle), clamp(yaw))
+
+    @staticmethod
+    def _swapped(axes):
+        lx, ly, rx, ry, l2, r2 = axes
+        return rx, ry, lx, ly, l2, r2
+
+    def speed_limit(self):
+        return self.settings["flight"][f"speed_{SPEED_NAMES[self.speed_idx]}"]
 
     def send_rc(self):
         now = time.monotonic()
@@ -585,7 +589,7 @@ class App:
         if idle and (self.landing or now < self.takeoff_until):
             return  # don't let rc interrupt takeoff / landing
         if self.tello.connected:
-            top = SPEED_MODES[self.speed_idx][1]
+            top = self.speed_limit()
             self.tello.send("rc " + " ".join(str(int(round(v * top))) for v in self.sticks))
 
     # ---- drawing -------------------------------------------------------------
@@ -629,9 +633,72 @@ class App:
         sw, sh = self.screen.get_size()
         blink = int(now * 2) % 2 == 0
 
-        # top bar
-        bar = pygame.Rect(0, 0, sw, 34)
-        self.panel(bar)
+        hud = self.settings["hud"]
+        if hud["top_bar"]:
+            self.draw_top_bar(blink, now)
+
+        if not t.connected:
+            self.text("Connect this PC's Wi-Fi to TELLO-XXXXXX and power on the drone",
+                      (sw // 2, sh // 2), (220, 220, 220), anchor="center")
+            self.text(f"Press {self.help_keys()} for controls", (sw // 2, sh // 2 + 30), (160, 160, 160),
+                      self.font_small, "center")
+        else:
+            if now - self.video.frame_time > 2:
+                self.text("NO VIDEO", (sw // 2, sh // 2 - 80), (240, 200, 60), self.font_big, "center")
+            if hud["attitude"]:
+                self.draw_attitude(area.center, st)
+            if hud["flight_data"]:
+                y = 50
+                h = st.get("h", 0) / 100
+                spd = math.hypot(st.get("vgx", 0), st.get("vgy", 0)) / 10
+                for label, value in (("ALT", f"{h:4.1f} m"), ("TOF", f"{st.get('tof', 0) / 100:4.2f} m"),
+                                     ("SPD", f"{spd:4.1f} m/s"), ("VS", f"{-st.get('vgz', 0) / 10:+4.1f} m/s")):
+                    self.panel(pygame.Rect(8, y - 2, 160, 30), 110)
+                    self.text(label, (14, y + 3), (160, 160, 160), self.font_small)
+                    self.text(value, (160, y + 1), anchor="topright")
+                    y += 34
+            if hud["heading"]:
+                hdg = int(st.get("yaw", 0)) % 360
+                self.text(f"HDG {hdg:03d}°", (sw // 2, 42), anchor="midtop")
+            if st.get("bat", 100) <= 20 and blink:
+                self.text("LOW BATTERY - LAND", (sw // 2, 80), (240, 70, 60), self.font_big, "midtop")
+            if hud["video_fps"] and self.video.fps:
+                self.text(f"{self.video.fps:.0f} fps", (sw - 10, 42), (160, 160, 160), self.font_small, "topright")
+
+        if hud["sticks"]:
+            self.draw_stick((70, sh - 70), *self.stick_pair("left"))
+            self.draw_stick((sw - 70, sh - 70), *self.stick_pair("right"))
+
+        if hud["messages"]:
+            y = sh - 30
+            for ts, msg in reversed(list(t.log_lines)):
+                age = now - ts
+                if age > 5:
+                    continue
+                self.text(msg, (sw // 2, y), (235, 235, 235) if age < 4 else (130, 130, 130),
+                          self.font_small, "midbottom")
+                y -= 20
+
+        if self.show_help:
+            self.draw_help()
+        elif hud["help_hint"]:
+            self.text(f"Press {self.help_keys()} for help", (sw // 2, sh - 6), (150, 150, 150),
+                      self.font_small, "midbottom")
+
+    def stick_pair(self, side):
+        """(x, y) the HUD shows for a physical stick."""
+        roll, pitch, throttle, yaw = self.sticks
+        return (roll, pitch) if self.settings["flight"]["move_stick"] == side else (yaw, throttle)
+
+    def help_keys(self):
+        k = key_label(self.settings["keys"]["help"])
+        menu = self.settings["pad"]["menu"]
+        return f"{k} or {pad_label(menu)}" if self.pad.name and menu else k
+
+    def draw_top_bar(self, blink, now):
+        t, st = self.tello, self.tello.state
+        sw = self.screen.get_width()
+        self.panel(pygame.Rect(0, 0, sw, 34))
         x = 10
         if t.connected:
             x = self.text("● LINK", (x, 7), (90, 220, 120)).right + 18
@@ -648,59 +715,14 @@ class App:
         else:
             self.text("● SEARCHING FOR TELLO" if blink else "○ SEARCHING FOR TELLO", (x, 7), (240, 200, 60))
         right = sw - 10
-        name, top = SPEED_MODES[self.speed_idx]
-        right = self.text(f"{name}", (right, 7), (120, 190, 255), anchor="topright").left - 18
-        right = self.text(self.pad.name or "keyboard", (right, 7), (180, 180, 180), self.font_small, "topright").left - 18
+        right = self.text(SPEED_NAMES[self.speed_idx].upper(), (right, 7), (120, 190, 255),
+                          anchor="topright").left - 18
+        right = self.text(self.pad.name or "keyboard", (right, 7), (180, 180, 180), self.font_small,
+                          "topright").left - 18
         if self.video.recording:
             secs = int(now - self.video.rec_start)
-            self.text(f"{'●' if blink else ' '} REC {secs // 60}:{secs % 60:02d}", (right, 7), (240, 70, 60), anchor="topright")
-
-        if not t.connected:
-            self.text("Connect this PC's Wi-Fi to TELLO-XXXXXX and power on the drone",
-                      (sw // 2, sh // 2), (220, 220, 220), anchor="center")
-            self.text(f"Press {self.help_keys()} for controls", (sw // 2, sh // 2 + 30), (160, 160, 160),
-                      self.font_small, "center")
-        else:
-            if now - self.video.frame_time > 2:
-                self.text("NO VIDEO", (sw // 2, sh // 2 - 80), (240, 200, 60), self.font_big, "center")
-            self.draw_attitude(area.center, st)
-            # flight data, left side
-            y = 50
-            h = st.get("h", 0) / 100
-            spd = math.hypot(st.get("vgx", 0), st.get("vgy", 0)) / 10
-            for label, value in (("ALT", f"{h:4.1f} m"), ("TOF", f"{st.get('tof', 0) / 100:4.2f} m"),
-                                 ("SPD", f"{spd:4.1f} m/s"), ("VS", f"{-st.get('vgz', 0) / 10:+4.1f} m/s")):
-                self.panel(pygame.Rect(8, y - 2, 160, 30), 110)
-                self.text(label, (14, y + 3), (160, 160, 160), self.font_small)
-                self.text(value, (160, y + 1), anchor="topright")
-                y += 34
-            hdg = int(st.get("yaw", 0)) % 360
-            self.text(f"HDG {hdg:03d}°", (sw // 2, 42), anchor="midtop")
-            if st.get("bat", 100) <= 20 and blink:
-                self.text("LOW BATTERY - LAND", (sw // 2, 80), (240, 70, 60), self.font_big, "midtop")
-            if self.video.fps:
-                self.text(f"{self.video.fps:.0f} fps", (sw - 10, 42), (160, 160, 160), self.font_small, "topright")
-
-        self.draw_stick((70, sh - 70), self.sticks[0], self.sticks[1])
-        self.draw_stick((sw - 70, sh - 70), self.sticks[3], self.sticks[2])
-
-        # messages
-        y = sh - 30
-        for ts, msg in reversed(list(t.log_lines)):
-            age = now - ts
-            if age > 5:
-                continue
-            self.text(msg, (sw // 2, y), (235, 235, 235) if age < 4 else (130, 130, 130), self.font_small, "midbottom")
-            y -= 20
-
-        if self.show_help:
-            self.draw_help()
-        else:
-            self.text(f"Press {self.help_keys()} for help", (sw // 2, sh - 6), (150, 150, 150),
-                      self.font_small, "midbottom")
-
-    def help_keys(self):
-        return "H or Start" if self.pad.name else "H"
+            self.text(f"{'●' if blink else ' '} REC {secs // 60}:{secs % 60:02d}", (right, 7), (240, 70, 60),
+                      anchor="topright")
 
     def draw_attitude(self, center, st):
         cx, cy = center
@@ -725,16 +747,18 @@ class App:
 
     def draw_help(self):
         sw, sh = self.screen.get_size()
-        box = pygame.Rect(0, 0, 620, 30 + 22 * len(HELP_LINES))
+        rows = help_rows(self.settings)
+        box = pygame.Rect(0, 0, 720, 60 + 22 * len(rows))
         box.center = (sw // 2, sh // 2)
         self.panel(box, 215)
         y = box.top + 15
-        for key, desc in HELP_LINES:
-            if key and not desc:
-                self.text(key, (box.left + 20, y), (120, 190, 255))
-            elif key:
-                self.text(key, (box.left + 30, y), (240, 200, 60), self.font_small)
-                self.text(desc, (box.left + 250, y), font=self.font_small)
+        for x, head in ((20, "CONTROLS"), (300, "KEYBOARD"), (500, "GAMEPAD")):
+            self.text(head, (box.left + x, y), (120, 190, 255))
+        y += 32
+        for what, kb, pad in rows:
+            self.text(what, (box.left + 20, y), font=self.font_small)
+            self.text(kb, (box.left + 300, y), (240, 200, 60), self.font_small)
+            self.text(pad, (box.left + 500, y), (240, 200, 60), self.font_small)
             y += 22
 
     # ---- main loop -----------------------------------------------------------
