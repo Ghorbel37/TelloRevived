@@ -72,6 +72,9 @@ CTRL_BUTTONS = {
     pygame.CONTROLLER_BUTTON_DPAD_RIGHT: "right",
 }
 
+TRIGGERS = {pygame.CONTROLLER_AXIS_TRIGGERLEFT: "l2", pygame.CONTROLLER_AXIS_TRIGGERRIGHT: "r2"}
+TRIGGER_ON, TRIGGER_OFF = 0.6, 0.3  # how far a trigger is pulled to count as pressed / released
+
 FLIP_DIRS = {"up": "f", "down": "b", "left": "l", "right": "r"}
 MOVE_FLIPS = {"forward": "f", "back": "b", "left": "l", "right": "r"}
 
@@ -379,6 +382,11 @@ class Gamepad:
         elif self.joy and ev.type in (pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP):
             name = next((k for k, v in RAW_MAP["buttons"].items() if v == ev.button), None)
             down = ev.type == pygame.JOYBUTTONDOWN
+        elif self.ctl and ev.type == pygame.CONTROLLERAXISMOTION and ev.axis in TRIGGERS:
+            return self._trigger(TRIGGERS[ev.axis], ev.value / 32767)
+        elif self.joy and ev.type == pygame.JOYAXISMOTION and ev.axis in (RAW_MAP["axes"]["l2"], RAW_MAP["axes"]["r2"]):
+            name = "l2" if ev.axis == RAW_MAP["axes"]["l2"] else "r2"
+            return self._trigger(name, (ev.value + 1) / 2)  # raw triggers rest at -1
         elif self.joy and ev.type == pygame.JOYHATMOTION:
             x, y = ev.value
             now = {d for d, on in (("left", x < 0), ("right", x > 0), ("down", y < 0), ("up", y > 0)) if on}
@@ -392,6 +400,15 @@ class Gamepad:
             self.held.add(name)
             return name
         self.held.discard(name)
+        return None
+
+    def _trigger(self, name, value):
+        """Treat an analog trigger as a button, so L2 / R2 can be bound like the others."""
+        if value > TRIGGER_ON and name not in self.held:
+            self.held.add(name)
+            return name
+        if value < TRIGGER_OFF:
+            self.held.discard(name)
         return None
 
     def axes(self):
@@ -699,6 +716,8 @@ class App:
             pitch += down("forward") - down("back")
         throttle += down("up") - down("down")
         yaw += down("turn_right") - down("turn_left")
+        if any(b == "l2" for a, b in self.settings["pad"].items() if a != "precision"):
+            l2 = 0.0  # L2 is bound to something else, so it no longer slows the drone
         precision = max(l2, 1.0 if down("precision") or self.settings["pad"]["precision"] in self.pad.held else 0.0)
         scale = 1 - (1 - fl["precision"]) * precision
         clamp = lambda v: max(-1.0, min(1.0, v)) * scale

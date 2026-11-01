@@ -35,7 +35,7 @@ HINTS = {
              "settings": "Opens this screen", "fullscreen": "Fullscreen on / off",
              "quit": "Quits - lands first if flying"},
     "pad": {**_ACTIONS, "flip": "Hold, then the D-pad to flip that way", "menu": "Opens help and settings",
-            "precision": "Hold for slow, fine moves (L2 always works)",
+            "precision": "Hold for slow, fine moves (L2 also works unless bound)",
             "emergency_1": "Press both emergency buttons together", "emergency_2": "Press both emergency buttons together"},
     "hud": {"top_bar": "Battery, Wi-Fi, flight time, temperature", "flight_data": "Altitude, height, speed, climb rate",
             "heading": "Angle turned since power-on (no compass)", "attitude": "Shows the drone's tilt",
