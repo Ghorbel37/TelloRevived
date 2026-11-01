@@ -35,6 +35,7 @@ VIDEO_URL = "udp://0.0.0.0:11111?overrun_nonfatal=1&fifo_size=5000000"
 MEDIA_DIR = Path(__file__).resolve().parent / "media"
 
 RC_HZ = 20
+LAND_STALL = 4.0  # seconds without descending before a landing attempt counts as failed
 SPEED_NAMES = ["slow", "normal", "fast"]
 
 # Only used when SDL doesn't recognise the pad as a standard controller.
@@ -412,6 +413,9 @@ class App:
         self.sticks = (0.0, 0.0, 0.0, 0.0)  # roll, pitch, throttle, yaw (-1..1, after scaling)
         self.last_rc = 0.0
         self.landing = False
+        self.land_kick = 0.0
+        self.land_fails = 0
+        self.land_failed = False
         self.takeoff_until = 0.0
         self.quit_after_land = False
         self.held_scans = set()
@@ -429,46 +433,76 @@ class App:
         if not self.tello.connected:
             return self.tello.log("Not connected")
         self.tello.log("Taking off")
-        self.landing = False
+        self.landing = self.land_failed = False
+        self.land_fails = 0
         self.takeoff_until = time.monotonic() + self.settings["flight"]["takeoff_pause"]
         self.tello.send("takeoff")
 
     def land(self):
-        if self.landing:
-            return
-        self.landing = True
         self.tello.log("Landing")
-        threading.Thread(target=self._land_loop, daemon=True).start()
+        self.tello.send("land")
+        if not self.tello.flying:
+            return
+        self.land_kick = time.monotonic()
+        if not self.landing:
+            self.landing = True
+            threading.Thread(target=self._watch_landing, daemon=True).start()
 
-    def _land_loop(self):
-        # rc packets can cancel a landing and single UDP packets get lost, so stop rc
-        # and resend "land" until the drone reports it's down
-        deadline = time.monotonic() + 20
+    def _watch_landing(self):
+        """Count landings that don't happen; with retry_landing on, resend "land" automatically."""
+        fl = self.settings["flight"]
+        while True:
+            result = self._wait_touchdown()
+            if result == "down":
+                self.land_fails, self.land_failed = 0, False
+                self.tello.log("Landed")
+                break
+            if result == "lost":
+                self.tello.log("Link lost while landing")
+                break
+            if result == "cancelled":
+                break
+            self.land_fails += 1
+            if self.land_fails >= fl["land_attempts"]:
+                self.land_failed = True
+                self.tello.log(f"Landing failed {self.land_fails} times")
+                break
+            if fl["retry_landing"]:
+                self.tello.log(f"Landing stalled - retrying ({self.land_fails + 1}/{fl['land_attempts']})")
+                self.tello.send("land")
+                self.land_kick = time.monotonic()
+            else:
+                self.tello.log(f"Landing didn't work ({self.land_fails}/{fl['land_attempts']}) - press land again")
+                break
+        self.landing = False
+
+    def _wait_touchdown(self):
+        """'down', 'stalled' (stopped descending), 'lost' (no telemetry) or 'cancelled'."""
+        best = self.tello.state.get("h", 0)
+        progress = time.monotonic()
         down_since = None
-        last_send = 0.0
-        while self.landing and time.monotonic() < deadline:
+        while self.landing:
             now = time.monotonic()
+            if not self.tello.connected:
+                return "lost"
             if not self.tello.flying:
                 down_since = down_since or now
                 if now - down_since > 1.0:
-                    break
+                    return "down"
             else:
                 down_since = None
-                if now - last_send > 3:
-                    last_send = now
-                    self.tello.send("land")
+                h = self.tello.state.get("h", 0)
+                if h < best - 5:
+                    best, progress = h, now
+                elif now - max(progress, self.land_kick) > LAND_STALL:
+                    return "stalled"
             time.sleep(0.1)
-        else:
-            if self.landing:
-                self.tello.log("Landing timed out - still flying?")
-        if self.landing:
-            self.landing = False
-            if not self.tello.flying:
-                self.tello.log("Landed")
+        return "cancelled"
 
     def emergency(self):
         for _ in range(3):
             self.tello.send("emergency")
+        self.landing = self.land_failed = False
         self.tello.log("EMERGENCY - motors stopped")
 
     def flip(self, d):
@@ -583,10 +617,11 @@ class App:
             return
         self.last_rc = now
         idle = not any(self.sticks)
-        if self.landing and not idle:
+        pause_for_landing = self.landing and self.settings["flight"]["retry_landing"]
+        if pause_for_landing and not idle:
             self.landing = False
             self.tello.log("Landing cancelled by stick input")
-        if idle and (self.landing or now < self.takeoff_until):
+        if idle and (pause_for_landing or now < self.takeoff_until):
             return  # don't let rc interrupt takeoff / landing
         if self.tello.connected:
             top = self.speed_limit()
@@ -679,11 +714,33 @@ class App:
                           self.font_small, "midbottom")
                 y -= 20
 
+        if self.land_failed and t.flying:
+            self.draw_land_failed()
+
         if self.show_help:
             self.draw_help()
         elif hud["help_hint"]:
             self.text(f"Press {self.help_keys()} for help", (sw // 2, sh - 6), (150, 150, 150),
                       self.font_small, "midbottom")
+
+    def draw_land_failed(self):
+        sw, sh = self.screen.get_size()
+        keys, pad = self.settings["keys"], self.settings["pad"]
+        stick = "right" if self.settings["flight"]["move_stick"] == "left" else "left"
+        emergency = key_label(keys["emergency"])
+        if self.pad.name:
+            emergency += f" or {pad_label(pad['emergency_1'])} + {pad_label(pad['emergency_2'])}"
+        lines = [f"Landing didn't work {self.land_fails} times.",
+                 f"Fly it down slowly yourself ({key_label(keys['down'])} / {stick} stick down),",
+                 "then when it's just above the ground (under ~20 cm)",
+                 f"stop the motors with EMERGENCY: {emergency}"]
+        box = pygame.Rect(0, 0, min(sw - 20, 640), 70 + 24 * len(lines))
+        box.midtop = (sw // 2, 120)
+        self.panel(box, 200)
+        pygame.draw.rect(self.screen, (240, 70, 60), box, 3)
+        self.text("LANDING FAILED", (box.centerx, box.top + 12), (240, 70, 60), self.font_big, "midtop")
+        for i, line in enumerate(lines):
+            self.text(line, (box.centerx, box.top + 56 + 24 * i), font=self.font_small, anchor="midtop")
 
     def stick_pair(self, side):
         """(x, y) the HUD shows for a physical stick."""
@@ -785,7 +842,11 @@ class App:
                     if button:
                         self.on_pad_button(button)
             if self.quit_after_land and not self.landing:
-                running = False
+                self.quit_after_land = False
+                if self.tello.flying:
+                    self.tello.log("Quit cancelled - the drone is still flying")
+                else:
+                    running = False
             self.read_sticks()
             self.send_rc()
             area = self.draw_video()

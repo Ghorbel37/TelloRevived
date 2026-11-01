@@ -36,7 +36,7 @@ DEFAULTS = {
         "move_stick": "left",
         "speed_slow": 30, "speed_normal": 60, "speed_fast": 100,
         "deadzone": 0.08, "expo": 0.35, "precision": 0.3,
-        "takeoff_pause": 6, "land_on_quit": True,
+        "retry_landing": False, "land_attempts": 3, "takeoff_pause": 0, "land_on_quit": True,
     },
 }
 
