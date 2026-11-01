@@ -658,7 +658,8 @@ class App:
         if not t.connected:
             self.text("Connect this PC's Wi-Fi to TELLO-XXXXXX and power on the drone",
                       (sw // 2, sh // 2), (220, 220, 220), anchor="center")
-            self.text("Press H for controls", (sw // 2, sh // 2 + 30), (160, 160, 160), self.font_small, "center")
+            self.text(f"Press {self.help_keys()} for controls", (sw // 2, sh // 2 + 30), (160, 160, 160),
+                      self.font_small, "center")
         else:
             if now - self.video.frame_time > 2:
                 self.text("NO VIDEO", (sw // 2, sh // 2 - 80), (240, 200, 60), self.font_big, "center")
@@ -694,6 +695,12 @@ class App:
 
         if self.show_help:
             self.draw_help()
+        else:
+            self.text(f"Press {self.help_keys()} for help", (sw // 2, sh - 6), (150, 150, 150),
+                      self.font_small, "midbottom")
+
+    def help_keys(self):
+        return "H or Start" if self.pad.name else "H"
 
     def draw_attitude(self, center, st):
         cx, cy = center
