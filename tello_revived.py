@@ -67,6 +67,7 @@ CTRL_BUTTONS = {
 FLIP_DIRS = {"up": "f", "down": "b", "left": "l", "right": "r"}
 # Movement keys go by physical position (scancode), so WASD is ZQSD on AZERTY
 MOVE_SCANS = {pygame.KSCAN_W: "f", pygame.KSCAN_S: "b", pygame.KSCAN_A: "l", pygame.KSCAN_D: "r"}
+TAKEOFF_GRACE = 6.0  # seconds of no rc after takeoff, unless the sticks move
 
 HELP_LINES = [
     ("GAMEPAD", ""),
@@ -213,7 +214,6 @@ class Tello:
             time.sleep(0.25)
 
     def close(self):
-        self.send("rc 0 0 0 0")
         self.running = False
 
 
@@ -411,6 +411,9 @@ class App:
         self.show_help = False
         self.sticks = (0.0, 0.0, 0.0, 0.0)  # roll, pitch, throttle, yaw (-1..1, after scaling)
         self.last_rc = 0.0
+        self.landing = False
+        self.takeoff_until = 0.0
+        self.quit_after_land = False
         self.held_scans = set()
         self.frame_surface = None
         self.scaled = None
@@ -426,11 +429,42 @@ class App:
         if not self.tello.connected:
             return self.tello.log("Not connected")
         self.tello.log("Taking off")
+        self.landing = False
+        self.takeoff_until = time.monotonic() + TAKEOFF_GRACE
         self.tello.send("takeoff")
 
     def land(self):
+        if self.landing:
+            return
+        self.landing = True
         self.tello.log("Landing")
-        self.tello.send("land")
+        threading.Thread(target=self._land_loop, daemon=True).start()
+
+    def _land_loop(self):
+        # rc packets can cancel a landing and single UDP packets get lost, so stop rc
+        # and resend "land" until the drone reports it's down
+        deadline = time.monotonic() + 20
+        down_since = None
+        last_send = 0.0
+        while self.landing and time.monotonic() < deadline:
+            now = time.monotonic()
+            if not self.tello.flying:
+                down_since = down_since or now
+                if now - down_since > 1.0:
+                    break
+            else:
+                down_since = None
+                if now - last_send > 3:
+                    last_send = now
+                    self.tello.send("land")
+            time.sleep(0.1)
+        else:
+            if self.landing:
+                self.tello.log("Landing timed out - still flying?")
+        if self.landing:
+            self.landing = False
+            if not self.tello.flying:
+                self.tello.log("Landed")
 
     def emergency(self):
         for _ in range(3):
@@ -511,7 +545,16 @@ class App:
         elif k == pygame.K_F11:
             self.toggle_fullscreen()
         elif k == pygame.K_ESCAPE:
+            return self.request_quit()
+        return True
+
+    def request_quit(self):
+        """Land before quitting; a second request quits right away."""
+        if self.quit_after_land or not self.tello.flying:
             return False
+        self.quit_after_land = True
+        self.tello.log("Landing before quit (Esc again to quit now)")
+        self.land()
         return True
 
     def read_sticks(self):
@@ -535,6 +578,12 @@ class App:
         if now - self.last_rc < 1 / RC_HZ:
             return
         self.last_rc = now
+        idle = not any(self.sticks)
+        if self.landing and not idle:
+            self.landing = False
+            self.tello.log("Landing cancelled by stick input")
+        if idle and (self.landing or now < self.takeoff_until):
+            return  # don't let rc interrupt takeoff / landing
         if self.tello.connected:
             top = SPEED_MODES[self.speed_idx][1]
             self.tello.send("rc " + " ".join(str(int(round(v * top))) for v in self.sticks))
@@ -689,7 +738,7 @@ class App:
         while running:
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT:
-                    running = False
+                    running = self.request_quit()
                 elif ev.type in (pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED):
                     self.pad.rescan()
                     self.tello.log(f"Gamepad: {self.pad.name}" if self.pad.name else "Gamepad disconnected")
@@ -704,6 +753,8 @@ class App:
                     button = self.pad.handle(ev)
                     if button:
                         self.on_pad_button(button)
+            if self.quit_after_land and not self.landing:
+                running = False
             self.read_sticks()
             self.send_rc()
             area = self.draw_video()
@@ -713,9 +764,10 @@ class App:
         self.shutdown()
 
     def shutdown(self):
-        if self.tello.flying:
-            self.land()
-            time.sleep(0.2)
+        if self.tello.flying:  # forced quit mid-flight: last-ditch land
+            for _ in range(3):
+                self.tello.send("land")
+                time.sleep(0.1)
         self.video.close()
         self.tello.close()
         pygame.quit()
