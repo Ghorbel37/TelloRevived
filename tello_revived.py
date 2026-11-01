@@ -1082,13 +1082,23 @@ def selftest():
     """Start the app, draw a few frames and check the H.264 decoder, then exit (used by the builds)."""
     global CMD_PORT, STATE_PORT
     CMD_PORT = STATE_PORT = 0  # any free port, so it runs next to a real session
-    av.CodecContext.create("h264", "r")
-    app = App()
-    for _ in range(5):
-        app.read_sticks()
-        app.draw_hud(app.draw_video())
-        pygame.display.flip()
-    app.shutdown()
+    try:
+        av.CodecContext.create("h264", "r")
+        assert ICON_PATH.exists(), f"missing {ICON_PATH}"
+        key_label(pygame.KSCAN_UP)
+        import settings
+        if not settings._sdl:
+            print("warning: SDL2 library not found - key names use the US layout")
+        app = App()
+        for _ in range(5):
+            app.read_sticks()
+            app.draw_hud(app.draw_video())
+            pygame.display.flip()
+        app.shutdown()
+    except Exception:  # a windowed build would show a dialog and hang CI instead
+        import traceback
+        traceback.print_exc()
+        return 1
     print("selftest ok")
     return 0
 

@@ -2,3 +2,6 @@
 __pycache__/
 media/
 config.json
+build/
+dist/
+.venv-build/
