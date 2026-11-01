@@ -28,6 +28,11 @@ case $OS in
     linux) PLATFORM="--enable-pthreads" ;;
 esac
 JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+# macOS binds each imported function to the library it came from when PyAV was built, and PyAV's
+# own libraries also offer the functions of the FFmpeg libraries below them (av_malloc is expected
+# in libavdevice, for example). Linking FFmpeg's libraries to each other as re-exports does the same.
+MAKE_VARS=""
+if [ $OS = macos ]; then MAKE_VARS="LD_LIB=-Wl,-reexport-l%"; fi
 
 cd "$WORK"
 [ -f "ffmpeg-$VERSION.tar.xz" ] || curl -sSfL -o "ffmpeg-$VERSION.tar.xz" "https://ffmpeg.org/releases/ffmpeg-$VERSION.tar.xz"
@@ -40,8 +45,10 @@ cd "ffmpeg-$VERSION"
     --disable-autodetect --disable-everything \
     --enable-decoder=h264 --enable-parser=h264 --enable-demuxer=h264 --enable-muxer=mp4 \
     --enable-protocol=udp,file --enable-bsf=extract_extradata,h264_mp4toannexb
-make -j"$JOBS"
-make install
+# shellcheck disable=SC2086  # MAKE_VARS is empty or one assignment
+make -j"$JOBS" $MAKE_VARS
+# shellcheck disable=SC2086
+make install $MAKE_VARS
 cd "$WORK/install"
 
 case $OS in

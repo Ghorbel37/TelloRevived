@@ -65,7 +65,7 @@ PyAV isn't recompiled. `tools/build.py` copies the installed PyAV into `build/sl
 How the copy is pointed at the new libraries depends on the system:
 
 - **Windows and Linux.** PyAV's packages give the FFmpeg libraries hashed names, like `avcodec-63-2756d4ff….dll` or `libavcodec-d61378e8.so.63.1.102`, and PyAV's compiled modules load them by those names. FFmpeg's own build uses plain names: `avcodec-63.dll`, `libavcodec.so.63`. Inside each PyAV module, every hashed name is overwritten with the plain name. The plain name is shorter, so it's padded with zero bytes to the same length. A zero byte ends a name, and nothing else in the file moves. The script checks that no hashed name is left.
-- **macOS.** PyAV's Mac packages already use plain names (`libavcodec.63.1.102.dylib`), so the files are swapped without patching anything. FFmpeg's libraries refer to each other by a shorter name (`libavcodec.63.dylib`), so after building, the script renames those references with `install_name_tool` and signs the libraries again (macOS won't load a changed library that isn't signed).
+- **macOS.** PyAV's Mac packages already use plain names (`libavcodec.63.1.102.dylib`), so the files are swapped without patching anything. FFmpeg's libraries refer to each other by a shorter name (`libavcodec.63.dylib`), so after building, the script renames those references with `install_name_tool` and signs the libraries again (macOS won't load a changed library that isn't signed). One more difference: macOS ties every function a module imports to the library it came from when the module was built, and PyAV's own libraries also offer the functions of the FFmpeg libraries they use (PyAV expects `av_malloc` in `libavdevice`, for example). So on macOS the FFmpeg libraries are linked to each other as *re-exports*, which makes each one offer its dependencies' functions too.
 
 During the PyInstaller run, `tools/pyinstaller_hooks/hook-av.py` replaces PyInstaller's own PyAV hook. That hook packs every file in PyAV's library folder, which would bring the full FFmpeg back. Ours packs only PyAV's Python modules, and the minimal libraries are picked up as their dependencies.
 
@@ -73,6 +73,7 @@ During the PyInstaller run, `tools/pyinstaller_hooks/hook-av.py` replaces PyInst
 
 - **Saving recordings needed an encoder.** Copying the video into an mp4 used to look up an H.264 *encoder*, which the minimal FFmpeg doesn't have. Recordings are now copied with `add_stream_from_template(..., opaque=True)`, which takes the stream settings as they are.
 - **Unplayable recordings.** The first minimal build didn't include `extract_extradata`, so FFmpeg never found the stream's SPS/PPS and wrote mp4 files with an empty header. Players and FFmpeg itself refused them. The filter is now included. Saving also refuses to write an mp4 without SPS/PPS: the raw `.h264` file is kept instead, so a recording is never lost.
+- **macOS: "Symbol not found: _av_malloc".** The first macOS builds failed because PyAV looks for FFmpeg's utility functions in `libavdevice` (see above). Fixed with re-exports.
 - **Windows temp path.** FFmpeg's configure script can't use a Windows-style `TMPDIR` (`C:\...`), so the build script sets a Unix-style one.
 
 ## How it's tested
