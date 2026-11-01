@@ -131,7 +131,7 @@ class Menu:
     def about_rows(self):
         media = data_dir() / "media"
         return [
-            Row("text", f"Tello Revived {VERSION}"),
+            Row("text", f"Tello Revived v{VERSION}"),
             Row("info", "Fly a DJI/Ryze Tello from your computer with a gamepad or keyboard."),
             Row("info", ""),
             Row("button", REPO_URL.removeprefix("https://"), fn=lambda: webbrowser.open(REPO_URL)),
@@ -322,9 +322,9 @@ class Menu:
             app.text(name, rect.center, (255, 255, 255) if i == self.tab else DIM, app.font_small, "center")
             self.tab_rects.append(rect)
             x = rect.right + 6
-        version = app.font_small.render(f"Tello Revived {VERSION}", True, DIM)
+        version = app.font_small.render(f"Tello Revived v{VERSION}", True, DIM)
         if x + version.get_width() + 16 < box.right:  # skip on narrow windows
-            app.text(f"Tello Revived {VERSION}", (box.right - 16, box.top + 26), DIM, app.font_small, "midright")
+            app.text(f"Tello Revived v{VERSION}", (box.right - 16, box.top + 26), DIM, app.font_small, "midright")
         pygame.draw.line(screen, (70, 80, 100), (box.left, box.top + 50), (box.right, box.top + 50))
 
         top, bottom = box.top + 62, box.bottom - 44

@@ -756,7 +756,7 @@ class App:
             if video_mode == "off":
                 self.text("VIDEO OFF (battery saver)", (sw // 2, sh // 2 - 80), (160, 160, 160), self.font, "center")
             elif not t.want_video():
-                self.text("Video starts at takeoff (keeps the drone cool)", (sw // 2, sh // 2 - 80), (160, 160, 160),
+                self.text("Video starts at takeoff", (sw // 2, sh // 2 - 80), (160, 160, 160),
                           self.font, "center")
             elif now - self.video.frame_time > 2:
                 self.text("NO VIDEO", (sw // 2, sh // 2 - 80), (240, 200, 60), self.font_big, "center")
@@ -1093,7 +1093,7 @@ def joytest():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--version", action="version", version=f"Tello Revived {VERSION}")
+    parser.add_argument("--version", action="version", version=f"Tello Revived v{VERSION}")
     parser.add_argument("--joytest", action="store_true", help="show raw gamepad input")
     parser.add_argument("--selftest", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
