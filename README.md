@@ -110,7 +110,7 @@ All of these are on the **Video & Power** page:
 
 - DsHidMini in **SDF** or **XInput** mode works with SDL's standard mapping.
 - In XInput mode, Windows grabs the PS button for the Xbox Game Bar. That's why Start opens help and settings by default. To stop this, turn off the Game Bar's controller button in Windows Settings → Gaming → Xbox Game Bar.
-- If the top bar shows your pad as `(raw)`, run `run.bat --joytest`, then put the axis and button numbers into `RAW_MAP` in `tello_revived.py`.
+- If the top bar shows your pad as `(raw)`, run `run.bat --joytest`, then put the axis and button numbers into `RAW_MAP` in `tello_revived/gamepad.py`.
 
 ## Safety
 
@@ -123,9 +123,17 @@ All of these are on the **Video & Power** page:
 
 | File | What it is |
 |---|---|
-| `tello_revived.py` | The app: drone link, video, input, HUD |
-| `menu.py` | Help and settings screen |
-| `settings.py` | Defaults, `config.json` loading and saving, key and button names |
+| `tello_revived/app.py` | The app: input, camera actions and the main loop |
+| `tello_revived/flight.py` | Take off, landing and the landing watch, flips, emergency stop, auto-land |
+| `tello_revived/hud.py` | Everything drawn during flight: video, flight data, button guide, warnings |
+| `tello_revived/menu.py` | Help and settings screen |
+| `tello_revived/drone.py` | The link to the drone: commands, replies and telemetry |
+| `tello_revived/video.py` | Video decoding and recording |
+| `tello_revived/gamepad.py` | Gamepad input |
+| `tello_revived/settings.py` | Defaults, `config.json` loading and saving, the help table |
+| `tello_revived/labels.py` | Key and button names |
+| `tello_revived/paths.py` | Where settings, media and assets are |
+| `tello_revived/cli.py` | Command line: `--joytest`, `--selftest`, `--version` |
 | `assets/make_logo.py` | Draws `assets/logo.png` and the window icon |
 | `tools/make_screenshots.py` | Renders the README screenshots without a drone |
 | `tools/build.py` | Builds the standalone app for the current system |

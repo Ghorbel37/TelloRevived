@@ -1,28 +1,25 @@
 """Render the README screenshots with a simulated camera image and telemetry (no drone needed).
 
-    .venv\\Scripts\\python.exe tools\\make_screenshots.py
+    uv run python tools/make_screenshots.py
 
 Uses default settings (your config.json is not read or changed) and writes docs/screenshots/*.png.
 """
-import os
-import sys
 import tempfile
 import time
 from pathlib import Path
 
 import numpy as np
+import pygame
+from pygame._sdl2 import controller as sdl_controller
+
+from tello_revived import drone, settings
+from tello_revived.app import App
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
-import pygame
-import settings as cfg
-
 out = ROOT / "docs" / "screenshots"
 out.mkdir(parents=True, exist_ok=True)
-cfg.Settings.__init__.__defaults__ = (Path(tempfile.mkdtemp()) / "config.json",)
-import tello_revived as tp
-tp.CMD_PORT, tp.STATE_PORT = 18889, 18890  # don't clash with a running app
+settings.Settings.__init__.__defaults__ = (Path(tempfile.mkdtemp()) / "config.json",)  # leave yours alone
+drone.CMD_PORT, drone.STATE_PORT = 18889, 18890  # don't clash with a running app
 
 
 def landscape(w=960, h=720):
@@ -48,8 +45,8 @@ def landscape(w=960, h=720):
     return np.clip(img, 0, 255).astype(np.uint8)
 
 
-pygame.init(); tp.sdl_controller.init()
-app = tp.App()
+pygame.init(); sdl_controller.init()
+app = App()
 frame = landscape()
 app.video.frame = (960, 720, frame.tobytes()); app.video.frame_id = 1
 app.video.fps = 30.0

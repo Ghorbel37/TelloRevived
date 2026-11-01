@@ -7,8 +7,10 @@ import webbrowser
 import av
 import pygame
 
-from settings import (REPO_URL, VERSION, DRONE_MODELS, data_dir, KEY_ACTIONS, PAD_ACTIONS, help_rows, key_label, pad_label,
-                      stream_settings_supported)
+from tello_revived import REPO_URL, VERSION
+from tello_revived.labels import key_label, pad_label
+from tello_revived.paths import MEDIA_DIR
+from tello_revived.settings import DRONE_MODELS, KEY_ACTIONS, PAD_ACTIONS, help_rows, stream_settings_supported
 
 STREAM_KEYS = ("resolution", "stream_fps", "bitrate")  # SDK 3.0 only
 TABS = ["Help", "Keyboard", "Gamepad", "HUD", "Flight", "Video & Power", "About"]
@@ -164,7 +166,7 @@ class Menu:
         self.app.on_setting_changed(section, key)
 
     def about_rows(self):
-        media = data_dir() / "media"
+        media = MEDIA_DIR
         return [
             Row("text", f"Tello Revived v{VERSION}"),
             Row("info", "Fly a DJI/Ryze Tello from your computer with a gamepad or keyboard."),

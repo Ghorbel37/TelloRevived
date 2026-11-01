@@ -31,7 +31,8 @@ def pyinstaller(*args):
            "--name", NAME, "--icon", str(ROOT / "assets" / "logo.png"),
            "--add-data", f"{ROOT / 'assets' / 'icon.png'}{sep}assets",
            "--distpath", str(DIST / "pyinstaller"), "--workpath", str(ROOT / "build"),
-           "--specpath", str(ROOT / "build"), *args, str(ROOT / "tello_revived.py")]
+           "--specpath", str(ROOT / "build"), "--paths", str(ROOT),
+           *args, str(ROOT / "tello_revived" / "__main__.py")]
     subprocess.run(cmd, check=True)
     return DIST / "pyinstaller"
 

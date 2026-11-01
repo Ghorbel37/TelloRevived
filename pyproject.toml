@@ -1,0 +1,36 @@
+[project]
+name = "tello-revived"
+dynamic = ["version"]
+description = "Fly a DJI/Ryze Tello from Windows, Linux or macOS with a gamepad or keyboard."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Ghorbel37" }]
+keywords = ["tello", "drone", "gamepad", "pygame"]
+dependencies = [
+    "pygame-ce>=2.5",
+    "av>=14",
+    "numpy",  # PyAV needs it to hand decoded frames over
+]
+
+[project.urls]
+Repository = "https://github.com/Ghorbel37/TelloRevived"
+
+[project.scripts]
+tello-revived = "tello_revived.cli:main"
+
+[dependency-groups]
+# uv sync --group build   (for tools/build.py)
+build = [
+    "pyinstaller>=6.10",
+    "pillow",  # lets PyInstaller turn the PNG logo into .ico / .icns
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "tello_revived/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tello_revived"]
