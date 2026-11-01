@@ -23,7 +23,7 @@ cd "ffmpeg-$VERSION"
     --enable-shared --disable-static --disable-programs --disable-doc --disable-debug \
     --disable-autodetect --enable-w32threads --disable-everything \
     --enable-decoder=h264 --enable-parser=h264 --enable-demuxer=h264 --enable-muxer=mp4 \
-    --enable-protocol=udp,file --enable-bsf=h264_mp4toannexb --extra-ldflags=-static-libgcc
+    --enable-protocol=udp,file --enable-bsf=extract_extradata,h264_mp4toannexb --extra-ldflags=-static-libgcc
 make -j"$(nproc)"
 make install
 cp "$WORK"/install/bin/*.dll "$OUT"/

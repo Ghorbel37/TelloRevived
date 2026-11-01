@@ -118,20 +118,25 @@ class Video:
 def remux_to_mp4(src, dst, fps=30):
     """Wrap the raw Tello H.264 stream in an mp4 without re-encoding."""
     tb = Fraction(1, fps)
-    with av.open(str(src), format="h264") as inp, av.open(str(dst), "w") as out:
+    with av.open(str(src), format="h264") as inp:
         in_stream = inp.streams.video[0]
-        # opaque: copy the codec settings as they are, so no H.264 encoder is needed (the slim
-        # FFmpeg in the standalone builds only has the decoder)
-        out_stream = out.add_stream_from_template(in_stream, opaque=True)
-        n = 0
-        for packet in inp.demux(in_stream):
-            if not packet.size:
-                continue
-            packet.stream = out_stream
-            packet.time_base = tb
-            packet.pts = packet.dts = n
-            packet.duration = 1
-            out.mux(packet)
-            n += 1
-        if not n:
-            raise ValueError("no video in recording")
+        # FFmpeg finds the stream's SPS/PPS while opening it. Players need them in the mp4's header
+        # and can't play the file without them, so keep the raw .h264 instead of saving that.
+        if not in_stream.codec_context.extradata:
+            raise ValueError("no SPS/PPS found in the stream")
+        with av.open(str(dst), "w") as out:
+            # opaque: copy the codec settings as they are, so no H.264 encoder is needed (the slim
+            # FFmpeg in the Windows build only has the decoder)
+            out_stream = out.add_stream_from_template(in_stream, opaque=True)
+            n = 0
+            for packet in inp.demux(in_stream):
+                if not packet.size:
+                    continue
+                packet.stream = out_stream
+                packet.time_base = tb
+                packet.pts = packet.dts = n
+                packet.duration = 1
+                out.mux(packet)
+                n += 1
+    if not n:
+        raise ValueError("no video in recording")
