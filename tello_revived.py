@@ -716,9 +716,12 @@ class App:
             pitch += down("forward") - down("back")
         throttle += down("up") - down("down")
         yaw += down("turn_right") - down("turn_left")
-        if any(b == "l2" for a, b in self.settings["pad"].items() if a != "precision"):
-            l2 = 0.0  # L2 is bound to something else, so it no longer slows the drone
-        precision = max(l2, 1.0 if down("precision") or self.settings["pad"]["precision"] in self.pad.held else 0.0)
+        pad_precision = self.settings["pad"]["precision"]
+        if pad_precision == "l2":
+            pad_slow = l2  # analog: the further it's pulled, the slower
+        else:
+            pad_slow = 1.0 if pad_precision in self.pad.held else 0.0
+        precision = max(pad_slow, 1.0 if down("precision") else 0.0)
         scale = 1 - (1 - fl["precision"]) * precision
         clamp = lambda v: max(-1.0, min(1.0, v)) * scale
         self.sticks = (clamp(roll), clamp(pitch), clamp(throttle), clamp(yaw))

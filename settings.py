@@ -42,7 +42,7 @@ DEFAULTS = {
     },
     "pad": {
         "takeoff": "triangle", "land": "cross", "speed": "circle", "photo": "r1", "record": "square",
-        "flip": "l1", "precision": None, "menu": "start",
+        "flip": "l1", "precision": "l2", "menu": "start",
         "emergency_1": "select", "emergency_2": "start",
     },
     "hud": {
@@ -88,7 +88,7 @@ KEY_ACTIONS = [
 PAD_ACTIONS = [
     ("takeoff", "Take off"), ("land", "Land"), ("speed", "Cycle speed mode"),
     ("photo", "Photo"), ("record", "Start / stop recording"),
-    ("flip", "Flip (hold + D-pad)"), ("precision", "Precision (hold; L2 too if unbound)"),
+    ("flip", "Flip (hold + D-pad)"), ("precision", "Precision (hold)"),
     ("menu", "Help / settings"),
     ("emergency_1", "EMERGENCY button 1"), ("emergency_2", "EMERGENCY button 2 (press both)"),
 ]
@@ -199,15 +199,11 @@ def help_rows(settings):
     p = {a: pad_label(b) for a, b in settings["pad"].items()}
     move = settings["flight"]["move_stick"].title()
     other = "Right" if move == "Left" else "Left"
-    l2_free = not any(b == "l2" for a, b in settings["pad"].items() if a != "precision")
-    precision = " / ".join(dict.fromkeys(filter(None, ["L2" if l2_free else None,
-                                                       p["precision"] if settings["pad"]["precision"] else None])))
-    precision = precision or "-"
     return [
         ("Forward / back / sideways", f"{k['forward']} {k['left']} {k['back']} {k['right']}", f"{move} stick"),
         ("Climb / descend", f"{k['up']} / {k['down']}", f"{other} stick up / down"),
         ("Turn", f"{k['turn_left']} / {k['turn_right']}", f"{other} stick left / right"),
-        ("Precision (hold)", k["precision"], precision),
+        ("Precision (hold)", k["precision"], p["precision"]),
         ("Take off", k["takeoff"], p["takeoff"]),
         ("Land", k["land"], p["land"]),
         ("Speed mode", f"{k['speed_slow']} {k['speed_normal']} {k['speed_fast']}"
