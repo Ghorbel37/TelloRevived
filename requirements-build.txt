@@ -1,3 +1,0 @@
--r requirements.txt
-pyinstaller>=6.10
-pillow  # lets PyInstaller turn the PNG logo into .ico / .icns

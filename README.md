@@ -32,7 +32,7 @@ Ready-to-run builds for Windows, Linux and macOS are on the repository's **Relea
 ## Setup
 
 1. Turn on the Tello and connect the computer's Wi-Fi to `TELLO-XXXXXX`.
-2. Start the downloaded app, or run from source: double-click `run.bat` on Windows, or run `./run.sh` on Linux and macOS. The first time, the script creates `.venv` and installs `pygame-ce`, `av` and `numpy`.
+2. Start the downloaded app, or run from source (see below).
 3. On Windows the firewall asks about the app (or Python) on the first run. Allow it on **Public** networks, because Windows treats the Tello's Wi-Fi as public. If you don't, there will be no video and no telemetry.
 
 When the drone is connected, the screen tells you which button takes off. Press **H** or **Start** for all the controls and **O** for settings.
@@ -110,7 +110,7 @@ All of these are on the **Video & Power** page:
 
 - DsHidMini in **SDF** or **XInput** mode works with SDL's standard mapping.
 - In XInput mode, Windows grabs the PS button for the Xbox Game Bar. That's why Start opens help and settings by default. To stop this, turn off the Game Bar's controller button in Windows Settings → Gaming → Xbox Game Bar.
-- If the top bar shows your pad as `(raw)`, run `run.bat --joytest`, then put the axis and button numbers into `RAW_MAP` in `tello_revived/gamepad.py`.
+- If the top bar shows your pad as `(raw)`, run `uv run tello-revived --joytest`, then put the axis and button numbers into `RAW_MAP` in `tello_revived/gamepad.py`.
 
 ## Safety
 
@@ -118,6 +118,16 @@ All of these are on the **Video & Power** page:
 - If the pad disconnects or you let go of everything, the drone hovers.
 - Quitting while flying lands first. Press the quit key again to quit right away.
 - Flips need more than 50% battery.
+
+## Running from source
+
+With [uv](https://docs.astral.sh/uv/):
+
+```
+uv run tello-revived
+```
+
+uv sets up Python and the dependencies the first time. Without uv, double-click `run.bat` on Windows or run `./run.sh` on Linux and macOS: they use uv when it's installed, and otherwise create a `.venv` with pip. Settings (`config.json`) and photos and videos (`media/`) are kept in the project folder.
 
 ## Project layout
 
@@ -142,10 +152,10 @@ All of these are on the **Video & Power** page:
 ## Building the app yourself
 
 ```
-python -m pip install -r requirements-build.txt
-python tools/build.py
+uv sync --group build
+uv run python tools/build.py
 ```
 
-The result is in `dist/`. Use a separate virtual environment for this if you like, so PyInstaller stays out of the one `run.bat` uses. `TelloRevived --selftest` starts the app without a drone, draws a few frames and exits; the GitHub workflow runs it on every build.
+The result is in `dist/`. `TelloRevived --selftest` starts the app without a drone, draws a few frames and exits; the GitHub workflow runs it on every build.
 
 To publish a release, push a tag such as `v1.0`. The workflow builds all four versions and attaches them to a GitHub release.

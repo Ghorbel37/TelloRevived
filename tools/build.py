@@ -1,7 +1,7 @@
 """Build a standalone Tello Revived for this OS with PyInstaller.
 
-    python -m pip install -r requirements-build.txt
-    python tools/build.py
+    uv sync --group build
+    uv run python tools/build.py
 
 Windows: dist/TelloRevived-windows-x64.exe       (single exe)
 Linux:   dist/TelloRevived-linux-x64.tar.gz      (single binary inside)
