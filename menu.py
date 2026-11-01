@@ -19,13 +19,48 @@ RED = (240, 70, 60)
 GREEN = (90, 220, 120)
 DIM = (150, 150, 150)
 ROW_H = 28
+HINT_H = 26  # line above the button bar for the highlighted setting's hint
+
+# One short line per setting, shown above the button bar while it's highlighted.
+_MOVE = {"forward": "Flies forward", "back": "Flies backward", "left": "Slides left without turning",
+         "right": "Slides right without turning", "up": "Climbs", "down": "Descends",
+         "turn_left": "Turns left on the spot", "turn_right": "Turns right on the spot"}
+_ACTIONS = {"precision": "Hold for slow, fine moves", "takeoff": "Takes off and hovers",
+            "land": "Lands where it is", "emergency": "Cuts the motors at once - the drone falls",
+            "photo": "Saves the current frame to the media folder", "record": "Starts or stops a video",
+            "speed": "Cycles slow / normal / fast", "speed_slow": "Switches to slow speed",
+            "speed_normal": "Switches to normal speed", "speed_fast": "Switches to fast speed"}
+HINTS = {
+    "keys": {**_MOVE, **_ACTIONS, "flip": "Hold, then a move key to flip that way", "help": "Shows the controls",
+             "settings": "Opens this screen", "fullscreen": "Fullscreen on / off",
+             "quit": "Quits - lands first if flying"},
+    "pad": {**_ACTIONS, "flip": "Hold, then the D-pad to flip that way", "menu": "Opens help and settings",
+            "precision": "Hold for slow, fine moves (L2 always works)",
+            "emergency_1": "Press both emergency buttons together", "emergency_2": "Press both emergency buttons together"},
+    "hud": {"top_bar": "Battery, Wi-Fi, flight time, temperature", "flight_data": "Altitude, height, speed, climb rate",
+            "heading": "Angle turned since power-on (no compass)", "attitude": "Shows the drone's tilt",
+            "sticks": "Shows your stick positions", "messages": "Short status messages",
+            "hint_bar": "The buttons you can use right now", "video_fps": "Video frames received per second"},
+    "drone": {"model": "Hides settings your drone can't use"},
+    "flight": {"move_stick": "This stick moves; the other climbs and turns",
+               "speed_slow": "Top speed in slow mode", "speed_normal": "Top speed in normal mode",
+               "speed_fast": "Top speed in fast mode", "precision": "Speed while precision is held",
+               "deadzone": "Ignores small stick drift", "expo": "Gentler near the centre, full at the edge",
+               "retry_landing": "Resends land until it touches down", "land_attempts": "Failed landings before the warning",
+               "takeoff_pause": "Ignores the sticks right after takeoff", "land_on_quit": "Quitting while flying lands first"},
+    "power": {"video": "Streaming heats the drone and uses battery", "resolution": "Lower uses less Wi-Fi and battery",
+              "stream_fps": "Lower uses less battery", "bitrate": "Lower is smoother on weak Wi-Fi",
+              "app_fps": "Lower saves PC battery", "auto_land_battery": "Lands by itself at this level",
+              "low_battery_warning": "Warns at this battery level"},
+}
 
 
 class Row:
     def __init__(self, kind, label, section=None, key=None, options=None,
-                 lo=0, hi=0, step=1, fmt="{}", fn=None):
+                 lo=0, hi=0, step=1, fmt="{}", fn=None, hint=None):
         self.kind, self.label, self.section, self.key = kind, label, section, key
         self.options, self.lo, self.hi, self.step, self.fmt, self.fn = options, lo, hi, step, fmt, fn
+        self.hint = hint or HINTS.get(section, {}).get(key)
 
     @property
     def selectable(self):
@@ -49,7 +84,8 @@ class Menu:
 
     def rows(self):
         name = TABS[self.tab]
-        reset = lambda section, what: Row("button", f"Reset {what} to defaults", fn=lambda: self.reset(section))
+        reset = lambda section, what: Row("button", f"Reset {what} to defaults", fn=lambda: self.reset(section),
+                                          hint="Puts this page back to its defaults")
         if name == "Help":
             return [Row("help", r) for r in help_rows(self.settings)]
         if name == "About":
@@ -134,8 +170,10 @@ class Menu:
             Row("text", f"Tello Revived v{VERSION}"),
             Row("info", "Fly a DJI/Ryze Tello from your computer with a gamepad or keyboard."),
             Row("info", ""),
-            Row("button", REPO_URL.removeprefix("https://"), fn=lambda: webbrowser.open(REPO_URL)),
-            Row("button", "Open the photos and videos folder", fn=lambda: webbrowser.open(media.as_uri())),
+            Row("button", REPO_URL.removeprefix("https://"), fn=lambda: webbrowser.open(REPO_URL),
+                hint="Opens in your browser"),
+            Row("button", "Open the photos and videos folder", fn=lambda: webbrowser.open(media.as_uri()),
+                hint="Opens in your file manager"),
             Row("info", ""),
             Row("info", f"Settings file:  {self.settings.path}"),
             Row("info", f"Photos/videos:  {media}"),
@@ -327,7 +365,7 @@ class Menu:
             app.text(f"Tello Revived v{VERSION}", (box.right - 16, box.top + 26), DIM, app.font_small, "midright")
         pygame.draw.line(screen, (70, 80, 100), (box.left, box.top + 50), (box.right, box.top + 50))
 
-        top, bottom = box.top + 62, box.bottom - 44
+        top, bottom = box.top + 62, box.bottom - 44 - HINT_H
         rows = self.rows()
         visible = max(1, (bottom - top) // ROW_H)
         if len(rows) + (TABS[self.tab] == "Help") > visible:
@@ -374,6 +412,9 @@ class Menu:
         elif self.scroll > 0:
             app.text("^  more above  ^", (box.centerx, y + 5), DIM, app.font_small, "midtop")
 
+        row = rows[self.sel] if self.sel < len(rows) and rows[self.sel].selectable else None
+        if row and row.hint and not self.capture:
+            app.text(row.hint, (box.left + 20, box.bottom - 36 - HINT_H + 4), ACCENT, app.font_small)
         pygame.draw.line(screen, (70, 80, 100), (box.left, box.bottom - 36), (box.right, box.bottom - 36))
         app.text(self.footer(), (box.centerx, box.bottom - 27), DIM, app.font_small, "midtop")
 
