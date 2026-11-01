@@ -646,7 +646,7 @@ class App:
     def draw_attitude(self, center, st):
         cx, cy = center
         roll = math.radians(st.get("roll", 0))
-        dy = st.get("pitch", 0) * 4
+        dy = -st.get("pitch", 0) * 4
         dx, ddy = math.cos(roll) * 110, -math.sin(roll) * 110
         col = (120, 255, 160)
         for gap in (-1, 1):  # horizon in two halves around the centre
