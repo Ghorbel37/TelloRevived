@@ -766,7 +766,7 @@ class App:
                  "then when it's just above the ground (under ~20 cm)",
                  f"stop the motors with EMERGENCY: {emergency}"]
         box = pygame.Rect(0, 0, min(sw - 20, 640), 70 + 24 * len(lines))
-        box.midtop = (sw // 2, 120)
+        box.midtop = (sw // 2, 200)  # below the flight data panel
         self.panel(box, 200)
         pygame.draw.rect(self.screen, (240, 70, 60), box, 3)
         self.text("LANDING FAILED", (box.centerx, box.top + 12), (240, 70, 60), self.font_big, "midtop")
