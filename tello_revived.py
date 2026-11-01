@@ -39,6 +39,8 @@ MONO = "consolas,dejavusansmono,menlo,couriernew"  # first one installed wins
 
 RC_HZ = 20
 BAR_H = 30  # height of the button guide at the bottom
+LOW_BAT_TAKEOFF = 10  # the Tello refuses to take off at or below about this battery level
+HOT_TEMP = 85  # degrees C; the HUD shows the temperature in red above this
 LAND_STALL = 4.0  # seconds without descending before a landing attempt counts as failed
 SPEED_NAMES = ["slow", "normal", "fast"]
 
@@ -460,7 +462,28 @@ class App:
         self.landing = self.land_failed = False
         self.land_fails = 0
         self.takeoff_until = time.monotonic() + self.settings["flight"]["takeoff_pause"]
-        self.tello.send("takeoff")
+        threading.Thread(target=self._do_takeoff, daemon=True).start()
+
+    def _do_takeoff(self):
+        # "ok" comes once it hovers; a refusal comes straight away and is just "error"
+        reply = self.tello.query("takeoff", 12.0)
+        if reply == "ok" or self.tello.flying:
+            return
+        reason = self.takeoff_problem()
+        if not reason:
+            reason = ("no reply from the drone" if not reply else
+                      f"the drone said '{reply}' with no reason - put it on a flat surface, or restart it")
+        self.tello.log(f"Take off refused: {reason}")
+
+    def takeoff_problem(self):
+        """The likely reason the drone won't take off, from its battery and temperature."""
+        st = self.tello.state
+        bat, temp = st.get("bat", 100), st.get("temph", 0)
+        if bat <= LOW_BAT_TAKEOFF:
+            return f"battery {bat:.0f}% is too low - charge it"
+        if temp >= HOT_TEMP:
+            return f"drone too hot ({temp:.0f}°C) - let it cool down"
+        return None
 
     def land(self):
         self.tello.log("Landing")
@@ -900,6 +923,11 @@ class App:
         on_pad = self.input_device() == "pad"
         btn = pad_label(self.settings["pad"]["takeoff"]) if on_pad else key_label(self.settings["keys"]["takeoff"])
         if btn == "-":
+            return
+        if problem := self.takeoff_problem():
+            rect = self.text("Can't take off", (sw // 2, sh // 2 + 110), (240, 70, 60), self.font_big, "center")
+            self.text(problem[0].upper() + problem[1:], (sw // 2, rect.bottom + 6), (235, 235, 235),
+                      self.font_small, "midtop")
             return
         rect = self.text(f"Press {btn} to take off", (sw // 2, sh // 2 + 110), (120, 255, 160),
                          self.font_big, "center")
