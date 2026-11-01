@@ -547,9 +547,21 @@ class App:
         if (section == "drone" or section == "power" and key in stream_keys) and self.tello.session:
             threading.Thread(target=self.tello.apply_stream_settings, daemon=True).start()
 
+    def camera_live(self):
+        """True while the stream is wanted and frames are actually arriving."""
+        return self.tello.want_video() and time.monotonic() - self.video.frame_time < 1.5
+
+    def camera_off_reason(self):
+        mode = self.settings["power"]["video"]
+        if mode == "off":
+            return "Camera is off (Settings > Video & Power)"
+        if not self.tello.want_video():
+            return "Camera starts at takeoff"
+        return "No video from the drone"
+
     def photo(self):
-        if not self.frame_surface:
-            return self.tello.log("No video frame to save")
+        if not self.camera_live():
+            return self.tello.log(f"No photo: {self.camera_off_reason()}")
         path = MEDIA_DIR / f"photo_{stamp()}.png"
         pygame.image.save(self.frame_surface, str(path))
         self.tello.log(f"Saved {path.name}")
@@ -558,6 +570,8 @@ class App:
         if self.video.recording:
             self.video.stop_recording()
             self.tello.log("Recording stopped - saving...")
+        elif not self.camera_live():
+            self.tello.log(f"Not recording: {self.camera_off_reason()}")
         else:
             self.video.start_recording(MEDIA_DIR / f"video_{stamp()}.h264")
             self.tello.log("Recording")
@@ -821,18 +835,26 @@ class App:
                 items.append((emergency, "EMERGENCY stop", red))
             items += [(b("land"), "Land", None),
                       (speed, f"Speed: {SPEED_NAMES[self.speed_idx]}", None),
-                      (b("photo"), "Photo", None),
-                      (b("record"), "Stop recording" if self.video.recording else "Record", None),
+                      *self.camera_items(b),
                       (b("flip"), "Hold: flips", None)] + help_items
             mode = ("LANDING", amber) if self.landing else ("FLYING", (90, 220, 120))
         elif t.connected:
-            items = [(b("takeoff"), "Take off", None), (b("photo"), "Photo", None),
-                     (b("record"), "Stop recording" if self.video.recording else "Record", None)] + help_items
+            items = [(b("takeoff"), "Take off", None), *self.camera_items(b)] + help_items
             mode = ("READY", (120, 190, 255))
         else:
             items = help_items + [(k("quit"), "Quit", None)]
             mode = ("OFFLINE", (150, 150, 150))
         return mode, [(btn, what, col) for btn, what, col in items if btn and btn != "-"]
+
+    def camera_items(self, b):
+        """Photo / record buttons, only while there is a picture (stop is always offered)."""
+        live = self.camera_live()
+        items = [(b("photo"), "Photo", None)] if live else []
+        if self.video.recording:
+            items.append((b("record"), "Stop recording", None))
+        elif live:
+            items.append((b("record"), "Record", None))
+        return items
 
     def draw_hint_bar(self):
         """Zellij-style strip of the buttons that matter right now."""
@@ -985,6 +1007,8 @@ class App:
                 else:
                     running = False
             self.check_battery()
+            if self.video.recording and not self.tello.want_video():
+                self.toggle_record()  # e.g. landed with video set to "only while flying"
             self.read_sticks()
             self.send_rc()
             if not minimized:  # nothing to see: skip drawing to save power

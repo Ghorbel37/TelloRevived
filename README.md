@@ -49,7 +49,7 @@ It shows the pad's buttons after you touch the pad and the keyboard's keys after
 
 ![Button guide for the keyboard](docs/screenshots/flight_keyboard.png)
 
-While landing, or after a landing fails, the emergency stop is added to the front. You can turn the bar off in **Settings → HUD**.
+Photo and Record only appear while the camera is streaming. With video set to **Only while flying**, that means after takeoff. A recording stops and is saved by itself when the video stops, for example after landing. While landing, or after a landing fails, the emergency stop is added to the front. You can turn the bar off in **Settings → HUD**.
 
 ## Default controls
 
