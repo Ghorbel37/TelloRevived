@@ -724,7 +724,7 @@ class App:
             if video_mode == "off":
                 self.text("VIDEO OFF (battery saver)", (sw // 2, sh // 2 - 80), (160, 160, 160), self.font, "center")
             elif not t.want_video():
-                self.text("Video starts at takeoff (battery saver)", (sw // 2, sh // 2 - 80), (160, 160, 160),
+                self.text("Video starts at takeoff (keeps the drone cool)", (sw // 2, sh // 2 - 80), (160, 160, 160),
                           self.font, "center")
             elif now - self.video.frame_time > 2:
                 self.text("NO VIDEO", (sw // 2, sh // 2 - 80), (240, 200, 60), self.font_big, "center")

@@ -99,8 +99,8 @@ Turn on **Settings → Flight → Retry landing automatically** if you want the 
 
 All of these are on the **Video & Power** page:
 
-- **Video stream: Only while flying / Off** stops the camera stream when you don't need it.
-- **Stream resolution / frame rate / bitrate** lower the stream quality. These need Tello firmware with SDK 3.0. Older drones show "not accepted" and keep their defaults.
+- **Video stream** is **Only while flying** by default, because the Tello gets very hot when it streams sitting on the ground. Choose **On** to see the camera before takeoff, or **Off** for no video at all.
+- **Stream resolution / frame rate / bitrate** lower the stream quality. These need Tello firmware with SDK 3.0, which most Tellos don't have. If yours doesn't, the app says so once, marks them "not supported" and the drone keeps its defaults.
 - **Auto-land at battery** lands once per flight when the battery reaches that level.
 - **App frame rate** lowers how often the window is redrawn, which saves laptop battery. Nothing is drawn while the window is minimised.
 

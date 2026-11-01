@@ -54,7 +54,7 @@ DEFAULTS = {
         "retry_landing": False, "land_attempts": 3, "takeoff_pause": 0, "land_on_quit": True,
     },
     "power": {
-        "video": "on",              # on / flying (only while airborne) / off
+        "video": "flying",          # flying (only while airborne) / on / off - the idle drone runs hot
         "resolution": "default",    # default / high / low     (SDK 3.0 firmware only)
         "stream_fps": "default",    # default / high / middle / low
         "bitrate": "default",       # default / auto / 1..5 Mbps
