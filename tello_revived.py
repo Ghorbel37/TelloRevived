@@ -37,6 +37,7 @@ MEDIA_DIR = data_dir() / "media"
 ICON_PATH = resource_dir() / "assets" / "icon.png"
 MONO = "consolas,dejavusansmono,menlo,couriernew"  # first one installed wins
 
+VERSION = "0.6"
 RC_HZ = 20
 BAR_H = 30  # height of the button guide at the bottom
 LAND_STALL = 4.0  # seconds without descending before a landing attempt counts as failed
@@ -407,7 +408,7 @@ def shape(v, deadzone, expo):
 
 class App:
     def __init__(self):
-        pygame.display.set_caption("Tello Revived")
+        pygame.display.set_caption(f"Tello Revived {VERSION}")
         try:
             pygame.display.set_icon(pygame.image.load(str(ICON_PATH)))
         except (pygame.error, FileNotFoundError):
@@ -1041,6 +1042,7 @@ def joytest():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", action="version", version=f"Tello Revived {VERSION}")
     parser.add_argument("--joytest", action="store_true", help="show raw gamepad input")
     parser.add_argument("--selftest", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
