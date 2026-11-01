@@ -27,14 +27,15 @@ import pygame
 from pygame._sdl2 import controller as sdl_controller
 
 from menu import Menu
-from settings import Settings, key_label, pad_label
+from settings import Settings, data_dir, key_label, pad_label, resource_dir
 
 TELLO_ADDR = ("192.168.10.1", 8889)
 CMD_PORT = 8889
 STATE_PORT = 8890
 VIDEO_URL = "udp://0.0.0.0:11111?overrun_nonfatal=1&fifo_size=5000000"
-MEDIA_DIR = Path(__file__).resolve().parent / "media"
-ICON_PATH = Path(__file__).resolve().parent / "assets" / "icon.png"
+MEDIA_DIR = data_dir() / "media"
+ICON_PATH = resource_dir() / "assets" / "icon.png"
+MONO = "consolas,dejavusansmono,menlo,couriernew"  # first one installed wins
 
 RC_HZ = 20
 BAR_H = 30  # height of the button guide at the bottom
@@ -434,10 +435,10 @@ class App:
         self.frame_surface = None
         self.scaled = None
         self.shown_frame_id = -1
-        self.font = pygame.font.SysFont("consolas", 18, bold=True)
-        self.font_big = pygame.font.SysFont("consolas", 30, bold=True)
-        self.font_small = pygame.font.SysFont("consolas", 15)
-        MEDIA_DIR.mkdir(exist_ok=True)
+        self.font = pygame.font.SysFont(MONO, 18, bold=True)
+        self.font_big = pygame.font.SysFont(MONO, 30, bold=True)
+        self.font_small = pygame.font.SysFont(MONO, 15)
+        MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
     # ---- actions -------------------------------------------------------------
 
@@ -1012,7 +1013,7 @@ def joytest():
     """Print raw joystick values so RAW_MAP can be adjusted."""
     screen = pygame.display.set_mode((640, 480))
     pygame.display.set_caption("Gamepad test - close window to exit")
-    font = pygame.font.SysFont("consolas", 16)
+    font = pygame.font.SysFont(MONO, 16)
     clock = pygame.time.Clock()
     joys = {}
     while True:
@@ -1041,6 +1042,7 @@ def joytest():
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--joytest", action="store_true", help="show raw gamepad input")
+    parser.add_argument("--selftest", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     pygame.init()
     sdl_controller.init()
@@ -1048,7 +1050,47 @@ def main():
         joytest()
         pygame.quit()
         return
-    App().run()
+    if args.selftest:
+        return selftest()
+    try:
+        app = App()
+    except OSError as e:
+        pygame.display.set_caption("Tello Revived")
+        message_window([f"Can't open the Tello ports {CMD_PORT}/{STATE_PORT}:", str(e), "",
+                        "Tello Revived (or another drone app) is probably already running.",
+                        "Close it and start Tello Revived again."])
+        pygame.quit()
+        return 1
+    app.run()
+
+
+def message_window(lines):
+    """Show some text until the window is closed or a key / button is pressed."""
+    screen = pygame.display.set_mode((720, 60 + 28 * len(lines)))
+    font = pygame.font.SysFont(MONO, 17)
+    clock = pygame.time.Clock()
+    while not any(ev.type in (pygame.QUIT, pygame.KEYDOWN, pygame.CONTROLLERBUTTONDOWN, pygame.JOYBUTTONDOWN)
+                  for ev in pygame.event.get()):
+        screen.fill((15, 15, 20))
+        for n, line in enumerate(lines):
+            screen.blit(font.render(line, True, (235, 235, 235)), (24, 30 + 28 * n))
+        pygame.display.flip()
+        clock.tick(20)
+
+
+def selftest():
+    """Start the app, draw a few frames and check the H.264 decoder, then exit (used by the builds)."""
+    global CMD_PORT, STATE_PORT
+    CMD_PORT = STATE_PORT = 0  # any free port, so it runs next to a real session
+    av.CodecContext.create("h264", "r")
+    app = App()
+    for _ in range(5):
+        app.read_sticks()
+        app.draw_hud(app.draw_video())
+        pygame.display.flip()
+    app.shutdown()
+    print("selftest ok")
+    return 0
 
 
 if __name__ == "__main__":
