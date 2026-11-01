@@ -77,6 +77,8 @@ To swap which stick moves and which climbs and turns, go to **Settings → Fligh
 | **Flight** | **Video & Power** |
 | ![Flight settings](docs/screenshots/menu_flight.png) | ![Video and power settings](docs/screenshots/menu_video.png) |
 
+The **About** page shows the version, a link to this repository, a button that opens the photos and videos folder, and where your settings are saved.
+
 Controls inside the settings screen:
 
 - **Keyboard:** `Up`/`Down` to move, `Left`/`Right` to change a value, `Enter` to edit, `Del` to clear a binding, `Tab` to switch page, `Esc` to close.

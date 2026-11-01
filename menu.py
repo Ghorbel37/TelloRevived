@@ -1,14 +1,17 @@
 """In-app help and settings screen, driven by keyboard, gamepad or mouse."""
 
+import platform
 import time
+import webbrowser
 
+import av
 import pygame
 
-from settings import (VERSION, DRONE_MODELS, KEY_ACTIONS, PAD_ACTIONS, help_rows, key_label, pad_label,
+from settings import (REPO_URL, VERSION, DRONE_MODELS, data_dir, KEY_ACTIONS, PAD_ACTIONS, help_rows, key_label, pad_label,
                       stream_settings_supported)
 
 STREAM_KEYS = ("resolution", "stream_fps", "bitrate")  # SDK 3.0 only
-TABS = ["Help", "Keyboard", "Gamepad", "HUD", "Flight", "Video & Power"]
+TABS = ["Help", "Keyboard", "Gamepad", "HUD", "Flight", "Video & Power", "About"]
 
 ACCENT = (120, 190, 255)
 YELLOW = (240, 200, 60)
@@ -26,7 +29,7 @@ class Row:
 
     @property
     def selectable(self):
-        return self.kind not in ("info", "help")
+        return self.kind not in ("info", "help", "text")
 
 
 class Menu:
@@ -49,6 +52,8 @@ class Menu:
         reset = lambda section, what: Row("button", f"Reset {what} to defaults", fn=lambda: self.reset(section))
         if name == "Help":
             return [Row("help", r) for r in help_rows(self.settings)]
+        if name == "About":
+            return self.about_rows()
         if name == "Keyboard":
             return [Row("key", label, "keys", a) for a, label in KEY_ACTIONS] + [reset("keys", "keyboard")]
         if name == "Gamepad":
@@ -126,6 +131,21 @@ class Menu:
     def changed(self, section, key):
         self.settings.save()
         self.app.on_setting_changed(section, key)
+
+    def about_rows(self):
+        media = data_dir() / "media"
+        return [
+            Row("text", f"Tello Revived {VERSION}"),
+            Row("info", "Fly a DJI/Ryze Tello from your computer with a gamepad or keyboard."),
+            Row("info", ""),
+            Row("button", REPO_URL.removeprefix("https://"), fn=lambda: webbrowser.open(REPO_URL)),
+            Row("button", "Open the photos and videos folder", fn=lambda: webbrowser.open(media.as_uri())),
+            Row("info", ""),
+            Row("info", f"Settings file:  {self.settings.path}"),
+            Row("info", f"Photos/videos:  {media}"),
+            Row("info", f"Python {platform.python_version()}, pygame-ce {pygame.version.ver}, "
+                        f"PyAV {av.__version__}, {platform.system()} {platform.release()}"),
+        ]
 
     def reset(self, section):
         self.settings.reset(section)
@@ -337,6 +357,8 @@ class Menu:
                 app.text(pad, (box.left + 560, y + 5), YELLOW, app.font_small)
             elif row.kind == "info":
                 app.text(row.label, (box.left + 20, y + 5), DIM, app.font_small)
+            elif row.kind == "text":
+                app.text(row.label, (box.left + 20, y + 3), font=app.font)
             else:
                 if i == self.sel:
                     pygame.draw.rect(screen, (45, 65, 105), rect, border_radius=5)

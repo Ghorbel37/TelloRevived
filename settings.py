@@ -24,6 +24,7 @@ def resource_dir():
 
 
 VERSION = "0.7"
+REPO_URL = "https://github.com/Ghorbel37/TelloRevived"
 CONFIG_PATH = data_dir() / "config.json"
 
 # Keyboard bindings are scancodes (physical key positions), so they work on any layout.
