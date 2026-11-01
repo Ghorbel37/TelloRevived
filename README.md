@@ -11,6 +11,7 @@ Fly a Ryze/DJI Tello from your PC with a PS3 controller (via DsHidMini) or the k
 ## Features
 
 - **Live video** in a resizable window or fullscreen (F11).
+- **Button guide** at the bottom that shows only the buttons you need right now, for the pad or the keyboard, whichever you used last.
 - **HUD:** battery, Wi-Fi signal, flight time, temperature, altitude, height above ground, speed, climb rate, heading, a horizon line, and stick positions. Each element can be turned off.
 - **Gamepad and keyboard at the same time.** Keys follow their physical position, so `WASD` is `ZQSD` on AZERTY keyboards.
 - **Settings screen.** Rebind every key and pad button, swap the sticks, adjust speeds and stick feel, change landing behaviour, and pick battery-saving options. Everything is saved to `config.json`.
@@ -18,13 +19,37 @@ Fly a Ryze/DJI Tello from your PC with a PS3 controller (via DsHidMini) or the k
 - **Landing help:** optional automatic retries, and a warning with instructions if landing keeps failing.
 - **Battery saving:** video only while flying or off, lower stream quality, auto-land at a battery level, and a lower app frame rate.
 
+## Download
+
+Ready-to-run builds for Windows, Linux and macOS are made by GitHub Actions: get them from the repository's **Releases** page, or from the **Actions** tab (open a run, then **Artifacts**).
+
+| System | File | How to start |
+|---|---|---|
+| Windows | `TelloRevived-windows-x64.exe` | Double-click it. Settings and media are saved next to the exe. |
+| Linux | `TelloRevived-linux-x64.tar.gz` | Extract it and run `TelloRevived/TelloRevived`. |
+| macOS | `TelloRevived-macos-arm64.zip` (Apple silicon) or `-x64.zip` (Intel) | Unzip and open **Tello Revived.app**. It isn't signed, so the first time right-click it and choose **Open**. Settings and media go in `~/Tello Revived`. |
+
 ## Setup
 
-1. Turn on the Tello and connect the PC's Wi-Fi to `TELLO-XXXXXX`.
-2. Double-click `run.bat`. The first time, it creates `.venv` and installs `pygame-ce`, `av` and `numpy`.
-3. On the first run, Windows Firewall asks about Python. Allow it on **Public** networks, because Windows treats the Tello's Wi-Fi as public. If you don't, there will be no video and no telemetry.
+1. Turn on the Tello and connect the computer's Wi-Fi to `TELLO-XXXXXX`.
+2. Start the downloaded app, or run from source: double-click `run.bat` on Windows, or run `./run.sh` on Linux and macOS. The first time, the script creates `.venv` and installs `pygame-ce`, `av` and `numpy`.
+3. On Windows the firewall asks about the app (or Python) on the first run. Allow it on **Public** networks, because Windows treats the Tello's Wi-Fi as public. If you don't, there will be no video and no telemetry.
 
-Press **H** or **Start** for the controls and **O** for settings.
+When the drone is connected, the screen tells you which button takes off. Press **H** or **Start** for all the controls and **O** for settings.
+
+## Button guide
+
+The bar at the bottom changes with what the drone is doing, so you rarely need the help screen:
+
+| On the ground | Flying | Holding the flip button (L1) |
+|---|---|---|
+| ![Ready to take off](docs/screenshots/ready.png) | ![Flying](docs/screenshots/flight.png) | ![Flip directions](docs/screenshots/flip.png) |
+
+It shows the pad's buttons after you touch the pad and the keyboard's keys after you press a key:
+
+![Button guide for the keyboard](docs/screenshots/flight_keyboard.png)
+
+While landing, or after a landing fails, the emergency stop is added to the front. You can turn the bar off in **Settings → HUD**.
 
 ## Default controls
 
@@ -101,3 +126,16 @@ All of these are on the **Video & Power** page:
 | `settings.py` | Defaults, `config.json` loading and saving, key and button names |
 | `assets/make_logo.py` | Draws `assets/logo.png` and the window icon |
 | `tools/make_screenshots.py` | Renders the README screenshots without a drone |
+| `tools/build.py` | Builds the standalone app for the current system |
+| `.github/workflows/build.yml` | Builds and tests Windows, Linux and macOS versions on GitHub |
+
+## Building the app yourself
+
+```
+python -m pip install -r requirements-build.txt
+python tools/build.py
+```
+
+The result is in `dist/`. Use a separate virtual environment for this if you like, so PyInstaller stays out of the one `run.bat` uses. `TelloRevived --selftest` starts the app without a drone, draws a few frames and exits; the GitHub workflow runs it on every build.
+
+To publish a release, push a tag such as `v1.0`. The workflow builds all four versions and attaches them to a GitHub release.
