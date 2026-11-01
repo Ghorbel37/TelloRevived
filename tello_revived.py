@@ -41,6 +41,7 @@ RC_HZ = 20
 BAR_H = 30  # height of the button guide at the bottom
 LOW_BAT_TAKEOFF = 10  # the Tello refuses to take off at or below about this battery level
 HOT_TEMP = 85  # degrees C; the HUD shows the temperature in red above this
+STALE_VIDEO = 1.0  # seconds without frames before the last picture is dropped
 LAND_STALL = 4.0  # seconds without descending before a landing attempt counts as failed
 SPEED_NAMES = ["slow", "normal", "fast"]
 
@@ -603,6 +604,10 @@ class App:
         if not self.camera_live():
             return self.tello.log(f"No photo: {self.camera_off_reason()}")
         path = MEDIA_DIR / f"photo_{stamp()}.png"
+        n = 2
+        while path.exists():  # several photos in the same second
+            path = MEDIA_DIR / f"photo_{stamp()}_{n}.png"
+            n += 1
         pygame.image.save(self.frame_surface, str(path))
         self.tello.log(f"Saved {path.name}")
 
@@ -749,7 +754,12 @@ class App:
             self.shown_frame_id = fid
             self.scaled = None
         self.screen.fill((12, 14, 18))
-        if not self.frame_surface or not self.tello.want_video():
+        if self.frame_surface and (not self.tello.want_video()
+                                   or time.monotonic() - self.video.frame_time > STALE_VIDEO):
+            # stream stopped or link dropped: forget the old picture, so it doesn't flash up at the
+            # next takeoff (a new frame replaces it as soon as one arrives)
+            self.frame_surface = self.scaled = None
+        if not self.frame_surface:
             return pygame.Rect(0, 0, sw, sh)
         fw, fh = self.frame_surface.get_size()
         k = min(sw / fw, sh / fh)
