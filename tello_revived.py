@@ -333,7 +333,7 @@ class Gamepad:
         for i in range(pygame.joystick.get_count()):
             if sdl_controller.is_controller(i):
                 self.ctl = sdl_controller.Controller(i)
-                self.name = sdl_controller.name_forindex(i) or "Gamepad"
+                self.name = pygame.joystick.Joystick(i).get_name() or "Gamepad"
                 return
         if pygame.joystick.get_count():
             self.joy = pygame.joystick.Joystick(0)
