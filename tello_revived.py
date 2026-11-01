@@ -71,8 +71,8 @@ TAKEOFF_GRACE = 6.0  # seconds of no rc after takeoff, unless the sticks move
 
 HELP_LINES = [
     ("GAMEPAD", ""),
-    ("Left stick", "climb / descend, turn"),
-    ("Right stick", "forward / back, sideways"),
+    ("Left stick", "forward / back, sideways"),
+    ("Right stick", "climb / descend, turn"),
     ("Triangle / Cross", "take off / land"),
     ("Circle", "cycle speed mode"),
     ("L2 (analog)", "precision - slows everything down"),
@@ -559,7 +559,7 @@ class App:
 
     def read_sticks(self):
         lx, ly, rx, ry, l2, _ = self.pad.axes()
-        roll, pitch, throttle, yaw = shape(rx), -shape(ry), -shape(ly), shape(lx)
+        roll, pitch, throttle, yaw = shape(lx), -shape(ly), -shape(ry), shape(rx)
         keys = pygame.key.get_pressed()
         mods = pygame.key.get_mods()
         if not mods & pygame.KMOD_CTRL:
@@ -681,8 +681,8 @@ class App:
             if self.video.fps:
                 self.text(f"{self.video.fps:.0f} fps", (sw - 10, 42), (160, 160, 160), self.font_small, "topright")
 
-        self.draw_stick((70, sh - 70), self.sticks[3], self.sticks[2])
-        self.draw_stick((sw - 70, sh - 70), self.sticks[0], self.sticks[1])
+        self.draw_stick((70, sh - 70), self.sticks[0], self.sticks[1])
+        self.draw_stick((sw - 70, sh - 70), self.sticks[3], self.sticks[2])
 
         # messages
         y = sh - 30
