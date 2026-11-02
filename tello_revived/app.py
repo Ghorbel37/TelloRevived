@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pygame
 
+from tello_revived.battery import FlightTime
 from tello_revived.drone import Tello
 from tello_revived.flightlog import FlightLog
 from tello_revived.flight import FlightActions
@@ -14,12 +15,13 @@ from tello_revived.gamepad import Gamepad, shape
 from tello_revived.hud import MONO, HudDrawing
 from tello_revived.labels import key_label
 from tello_revived.menu import Menu
-from tello_revived import firewall, folder_picker, wifi
+from tello_revived import firewall, folder_picker, updates, wifi
 from tello_revived.paths import ICON_PATH, MEDIA_DIR
 from tello_revived.settings import SPEED_NAMES, Settings
 from tello_revived.video import Video
 
 RC_HZ = 20
+UPDATE_RETRY = 300.0  # seconds between update checks while offline (e.g. on the drone's Wi-Fi)
 WIFI_SCAN_EVERY = 5.0  # seconds between looks for the drone's network, while it isn't connected
 
 FLIP_DIRS = {"up": "f", "down": "b", "left": "l", "right": "r"}
@@ -57,6 +59,7 @@ class App(FlightActions, HudDrawing):
         self.held_scans = set()
         self.taking_off = False  # takeoff sent, no answer yet
         self.flight_log = FlightLog()
+        self.flight_time = FlightTime()
         self.firewall_button = None  # where the HUD drew "Allow it now", for mouse clicks
         self.firewall_status = None  # what happened after pressing it
         self.drone_networks = []  # TELLO-... networks in range, while the drone isn't connected
@@ -65,6 +68,12 @@ class App(FlightActions, HudDrawing):
         self.wifi_status = None
         if wifi.available():
             threading.Thread(target=self._watch_wifi, daemon=True).start()
+        self.new_release = None  # (tag, url) of a newer release, once found
+        self.update_state = "Checking for updates..."
+        if self.settings["app"]["check_updates"]:
+            threading.Thread(target=self._check_updates, daemon=True).start()
+        else:
+            self.update_state = "Update check is off"
         self.last_input = "pad"  # which device the button guide shows
         self.frame_surface = None  # the video frame on screen (already scaled to the window)
         self.shown_frame_id = -1
@@ -157,6 +166,21 @@ class App(FlightActions, HudDrawing):
         self.settings["files"]["media_dir"] = str(path) if folder else ""
         self.settings.save()
         self.tello.log(f"Photos and videos now go to {path}")
+
+    def _check_updates(self):
+        """Ask GitHub for the latest release; retry every few minutes while offline."""
+        while self.tello.running:
+            latest = updates.latest_release()
+            if latest:
+                if updates.is_newer(latest[0]):
+                    self.new_release = latest
+                    self.update_state = f"{latest[0]} is available"
+                    self.tello.log(f"Tello Revived {latest[0]} is available - see Settings > About")
+                else:
+                    self.update_state = "Up to date"
+                return
+            self.update_state = "Couldn't check for updates (offline?) - trying again later"
+            time.sleep(UPDATE_RETRY)
 
     def _watch_wifi(self):
         """While the drone isn't connected, look for its network (TELLO-...) every few seconds."""
@@ -375,6 +399,7 @@ class App(FlightActions, HudDrawing):
                 return False
             self.tello.log("Quit cancelled - the drone is still flying")
         self.check_battery()
+        self.flight_time.update(self.tello.flying, self.tello.state.get("bat"), time.monotonic())
         self.flight_log.update(self)
         if self.video.recording and not self.tello.want_video():
             self.toggle_record()  # e.g. landed with video set to "only while flying"

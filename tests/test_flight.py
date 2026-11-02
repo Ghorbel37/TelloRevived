@@ -107,6 +107,7 @@ def test_landing_that_never_happens_shows_the_warning(app, monkeypatch):
 def test_each_flight_is_logged_to_a_csv(app, tmp_path):
     import csv
 
+    app.settings["files"]["flight_log"] = True  # off by default
     app.fake.handlers["takeoff"] = climbs(height_after=1.0, reply_after=1.5)
     app.fake.handlers["land"] = lands(after=1.0)
     connect(app)
@@ -125,8 +126,8 @@ def test_each_flight_is_logged_to_a_csv(app, tmp_path):
     assert float(rows[-1]["time_s"]) > float(rows[0]["time_s"])
 
 
-def test_flight_log_can_be_switched_off(app, tmp_path):
-    app.settings["files"]["flight_log"] = False
+def test_no_flight_log_unless_switched_on(app, tmp_path):
+    assert app.settings["files"]["flight_log"] is False
     connect(app)
     app.fake.state.update(h=100, tof=100)
     run(app, 1.5)

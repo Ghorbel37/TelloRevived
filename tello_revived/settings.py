@@ -50,7 +50,10 @@ DEFAULTS = {
     },
     "files": {
         "media_dir": "",  # where photos and recordings go; empty = the media folder next to the app
-        "flight_log": True,  # a CSV of the telemetry for each flight, in the same folder
+        "flight_log": False,  # a CSV of the telemetry for each flight, in the same folder (off unless chosen)
+    },
+    "app": {
+        "check_updates": True,  # ask GitHub once at start whether there's a newer release
     },
 }
 

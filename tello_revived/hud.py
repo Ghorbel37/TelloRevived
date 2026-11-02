@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pygame
 
-from tello_revived import firewall, wifi
+from tello_revived import battery, firewall, wifi
 from tello_revived.flight import HOT_TEMP
 from tello_revived.labels import key_label, pad_label
 from tello_revived.settings import SPEED_NAMES
@@ -345,7 +345,10 @@ class HudDrawing:
             bat = int(st.get("bat", 0))
             low = self.settings["power"]["low_battery_warning"]
             col = (90, 220, 120) if bat > 2 * low else (240, 200, 60) if bat > low else (240, 70, 60)
-            x = self.text(f"BAT {bat}%", (x, 7), col).right + 18
+            label = f"BAT {bat}%"
+            if (minutes := self.flight_minutes_left()) is not None:
+                label += f" {battery.describe(minutes)}"
+            x = self.text(label, (x, 7), col).right + 18
             if t.wifi is not None:
                 col = (90, 220, 120) if t.wifi > 60 else (240, 200, 60) if t.wifi > 30 else (240, 70, 60)
                 x = self.text(f"WIFI {t.wifi}", (x, 7), col).right + 18

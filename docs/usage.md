@@ -61,7 +61,7 @@ Changing things:
 - **Swapping the sticks:** **Flight → Move with** changes which stick moves and which one climbs and turns.
 - **Drone model:** **Flight → Drone model** sets Tello, Tello EDU or RoboMaster TT. Settings your drone can't use are hidden.
 - **Photos and videos folder:** at the bottom of **Video & Power**. It opens your system's folder dialog. **Use the default folder** switches back. On Linux this needs `zenity` or `kdialog`; without them, set `media_dir` in `config.json`.
-- **About:** shows the version, a link to this project, the photos and videos folder, and where your settings are saved.
+- **About:** shows the version, a link to this project, the photos and videos folder, and where your settings are saved. When a newer release is out, an **Update available** button opens its download page. The app asks GitHub once at start (with `curl`, which Windows, macOS and most Linux systems include). **Check for updates at start** turns this off.
 
 Settings are saved in `config.json`. While the settings screen is open, only the gamepad flies the drone, and the emergency stop still works.
 
@@ -76,6 +76,8 @@ When that happens, fly the drone down slowly yourself, and use the emergency sto
 With **Flight → Retry landing automatically** on, the app keeps resending `land` for you. It also holds back stick commands while landing, because they can cancel a landing. Moving a stick cancels the automatic landing.
 
 ## Battery and heat
+
+While flying, the top bar shows roughly how many minutes are left, for example **BAT 64% ~9 min**. The estimate comes from how fast the battery has dropped over the last two minutes of this flight, so it adjusts when you fly harder. It counts down to your auto-land level, or to 10% (when the Tello lands by itself), and appears once the battery has dropped 2% in this flight.
 
 All of these are on the **Video & Power** page:
 
@@ -99,7 +101,7 @@ It uses the system's own tools: `netsh` on Windows (the first time, it adds a Wi
 
 ## Flight logs
 
-Each flight is saved as `flight_<date>_<time>.csv` in the photos and videos folder. It starts when you press take off and ends 3 seconds after landing. It has one row per telemetry packet, about ten a second:
+Turn on **Video & Power → Save flight logs** (off by default), and each flight is saved as `flight_<date>_<time>.csv` in the photos and videos folder. It starts when you press take off and ends 3 seconds after landing. It has one row per telemetry packet, about ten a second:
 
 | Columns | What they are |
 |---|---|
@@ -111,7 +113,7 @@ Each flight is saved as `flight_<date>_<time>.csv` in the photos and videos fold
 | `wifi`, `stick_*` | Wi-Fi signal, and the stick inputs sent to the drone (-1 to 1) |
 | `event` | Messages the app showed at that moment, such as "Taking off" or "Landed" |
 
-The logs open in any spreadsheet. If the drone does something unexpected, the log of that flight shows exactly what it reported. **Video & Power → Save flight logs** turns them off.
+The logs open in any spreadsheet. If the drone does something unexpected, the log of that flight shows exactly what it reported.
 
 ## Firewall
 

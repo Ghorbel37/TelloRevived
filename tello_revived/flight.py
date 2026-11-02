@@ -136,6 +136,11 @@ class FlightActions:
             self.tello.log(f"Drone refused the flip {name}: {reply or 'no reply'}"
                            f" (battery {self.tello.state.get('bat', 0):.0f}%)")
 
+    def flight_minutes_left(self):
+        """Estimated minutes until auto-land (or the drone's own landing at about 10%), or None."""
+        reserve = self.settings["power"]["auto_land_battery"] or LOW_BAT_TAKEOFF
+        return self.flight_time.minutes_left(reserve)
+
     def check_battery(self):
         """Auto-land once per flight when the battery reaches the configured level."""
         limit = self.settings["power"]["auto_land_battery"]

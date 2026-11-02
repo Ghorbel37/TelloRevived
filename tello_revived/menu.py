@@ -141,6 +141,17 @@ class Menu:
             reset("power", "video & power"),
         ]
 
+    def update_rows(self):
+        app = self.app
+        if app.new_release:
+            tag, url = app.new_release
+            first = Row("button", f"Update available: {tag} - open the download page",
+                        fn=lambda: webbrowser.open(url), hint="Opens the release page in your browser")
+        else:
+            first = Row("info", app.update_state)
+        return [first, Row("toggle", "Check for updates at start", "app", "check_updates",
+                           hint="Asks GitHub once when the app starts")]
+
     def media_rows(self):
         folder = str(self.app.media_dir())
         if len(folder) > 48:
@@ -189,6 +200,7 @@ class Menu:
                 hint="Opens in your browser"),
             Row("button", "Open the photos and videos folder", fn=lambda: webbrowser.open(media.as_uri()),
                 hint="Opens in your file manager"),
+            *self.update_rows(),
             Row("info", ""),
             Row("info", f"Settings file:  {self.settings.path}"),
             Row("info", f"Photos/videos:  {media}"),
