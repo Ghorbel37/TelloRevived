@@ -6,6 +6,7 @@
 - [Landing](#landing)
 - [Battery and heat](#battery-and-heat)
 - [Gamepads](#gamepads)
+- [Flight logs](#flight-logs)
 - [Firewall](#firewall)
 
 ## Button guide
@@ -88,6 +89,22 @@ All of these are on the **Video & Power** page:
 - Gamepads that SDL knows (PlayStation, Xbox and most others) work out of the box. A PS3 controller on Windows works through DsHidMini in SDF or XInput mode.
 - If the top bar shows your gamepad as `(raw)`, SDL doesn't know its layout. Run `uv run tello-revived --joytest`, then put the axis and button numbers it shows into `RAW_MAP` in `tello_revived/gamepad.py`.
 - L2 and R2 can be bound like buttons. A firm pull counts as a press.
+
+## Flight logs
+
+Each flight is saved as `flight_<date>_<time>.csv` in the photos and videos folder. It starts when you press take off and ends 3 seconds after landing. It has one row per telemetry packet, about ten a second:
+
+| Columns | What they are |
+|---|---|
+| `time_s` | Seconds since takeoff |
+| `height_cm`, `ground_distance_cm`, `barometer_m` | Height above the takeoff point, the downward sensor's distance to the ground, air-pressure altitude |
+| `battery_pct`, `temp_low_c`, `temp_high_c` | Battery and temperature |
+| `pitch_deg`, `roll_deg`, `yaw_deg` | Tilt and heading |
+| `speed_*`, `accel_*` | Speeds (in decimetres per second) and accelerations |
+| `wifi`, `stick_*` | Wi-Fi signal, and the stick inputs sent to the drone (-1 to 1) |
+| `event` | Messages the app showed at that moment, such as "Taking off" or "Landed" |
+
+The logs open in any spreadsheet. If the drone does something unexpected, the log of that flight shows exactly what it reported. **Video & Power → Save flight logs** turns them off.
 
 ## Firewall
 

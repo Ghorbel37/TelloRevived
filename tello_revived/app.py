@@ -8,6 +8,7 @@ from pathlib import Path
 import pygame
 
 from tello_revived.drone import Tello
+from tello_revived.flightlog import FlightLog
 from tello_revived.flight import FlightActions
 from tello_revived.gamepad import Gamepad, shape
 from tello_revived.hud import MONO, HudDrawing
@@ -54,6 +55,7 @@ class App(FlightActions, HudDrawing):
         self.quit_after_land = False
         self.held_scans = set()
         self.taking_off = False  # takeoff sent, no answer yet
+        self.flight_log = FlightLog()
         self.firewall_button = None  # where the HUD drew "Allow it now", for mouse clicks
         self.firewall_status = None  # what happened after pressing it
         self.last_input = "pad"  # which device the button guide shows
@@ -331,6 +333,7 @@ class App(FlightActions, HudDrawing):
                 return False
             self.tello.log("Quit cancelled - the drone is still flying")
         self.check_battery()
+        self.flight_log.update(self)
         if self.video.recording and not self.tello.want_video():
             self.toggle_record()  # e.g. landed with video set to "only while flying"
         self.read_sticks()
@@ -341,6 +344,7 @@ class App(FlightActions, HudDrawing):
         return True
 
     def shutdown(self):
+        self.flight_log.close()
         if self.tello.flying:  # forced quit mid-flight: last-ditch land
             for _ in range(3):
                 self.tello.send("land")

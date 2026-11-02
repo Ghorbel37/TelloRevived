@@ -50,6 +50,7 @@ DEFAULTS = {
     },
     "files": {
         "media_dir": "",  # where photos and recordings go; empty = the media folder next to the app
+        "flight_log": True,  # a CSV of the telemetry for each flight, in the same folder
     },
 }
 

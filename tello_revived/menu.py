@@ -146,7 +146,9 @@ class Menu:
         if len(folder) > 48:
             folder = "..." + folder[-45:]
         rows = [Row("button", f"Photos and videos: {folder}", fn=self.app.choose_media_dir,
-                    hint="Choose where photos and recordings are saved")]
+                    hint="Choose where photos and recordings are saved"),
+                Row("toggle", "Save flight logs", "files", "flight_log",
+                    hint="A CSV of the drone's telemetry for each flight, in that folder")]
         if self.settings["files"]["media_dir"]:
             rows.append(Row("button", "Use the default folder", fn=lambda: self.app.set_media_dir(""),
                             hint=f"Back to {MEDIA_DIR}"))

@@ -102,3 +102,32 @@ def test_landing_that_never_happens_shows_the_warning(app, monkeypatch):
     app.land()
     assert wait_until(app, lambda: app.land_failed)
     assert "LANDING FAILED" in screen_text(app)
+
+
+def test_each_flight_is_logged_to_a_csv(app, tmp_path):
+    import csv
+
+    app.fake.handlers["takeoff"] = climbs(height_after=1.0, reply_after=1.5)
+    app.fake.handlers["land"] = lands(after=1.0)
+    connect(app)
+    app.takeoff()
+    run(app, 3)
+    app.land()
+    assert wait_until(app, lambda: any(m.startswith("Saved flight_") for m in messages(app)), timeout=10)
+    log = next((tmp_path / "media").glob("flight_*.csv"))
+    rows = list(csv.DictReader(log.open(encoding="utf-8")))
+    assert len(rows) > 20  # about ten a second
+    assert rows[0]["height_cm"] == "0" and rows[0]["battery_pct"] == "80"
+    assert "80" in {r["ground_distance_cm"] for r in rows}  # climbing while the height still read 0
+    assert "80" in {r["height_cm"] for r in rows}
+    events = " / ".join(r["event"] for r in rows)
+    assert "Landing" in events and "Landed" in events
+    assert float(rows[-1]["time_s"]) > float(rows[0]["time_s"])
+
+
+def test_flight_log_can_be_switched_off(app, tmp_path):
+    app.settings["files"]["flight_log"] = False
+    connect(app)
+    app.fake.state.update(h=100, tof=100)
+    run(app, 1.5)
+    assert not list((tmp_path / "media").glob("flight_*.csv"))
