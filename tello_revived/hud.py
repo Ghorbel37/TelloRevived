@@ -1,7 +1,9 @@
 """Everything drawn on screen during flight: video, flight data, button guide, warnings."""
 
 import math
+import sys
 import time
+from pathlib import Path
 
 import pygame
 
@@ -67,7 +69,9 @@ class HudDrawing:
         if hud["top_bar"]:
             self.draw_top_bar(blink, now)
 
-        if not t.connected:
+        if t.blocked and not t.connected:
+            self.draw_firewall_help()
+        elif not t.connected:
             self.text("Connect this PC's Wi-Fi to TELLO-XXXXXX and power on the drone",
                       (sw // 2, sh // 2), (220, 220, 220), anchor="center")
             self.text(f"Press {self.help_keys()} for controls", (sw // 2, sh // 2 + 30), (160, 160, 160),
@@ -230,6 +234,32 @@ class HudDrawing:
         self.text("Check there is space around and above the drone", (sw // 2, rect.bottom + 6),
                   (170, 170, 170), self.font_small, "midtop")
 
+    def draw_firewall_help(self):
+        """The drone answers commands but its telemetry and video don't get through."""
+        sw, sh = self.screen.get_size()
+        if sys.platform == "win32":
+            if getattr(sys, "frozen", False):
+                app = Path(sys.executable).name
+            else:  # a venv's python.exe hands over to the installed Python, which is what the firewall sees
+                app = getattr(sys, "_base_executable", sys.executable)
+                if len(app) > 70:
+                    app = "..." + app[-67:]
+            how = ["Open Windows Security > Firewall & network protection >",
+                   "Allow an app through firewall, and tick Private and Public for:", app]
+        elif sys.platform == "darwin":
+            how = ["Open System Settings > Network > Firewall > Options,", "and allow incoming connections for Tello Revived."]
+        else:
+            how = ["Allow incoming UDP on ports 8890 and 11111, for example:", "sudo ufw allow 8890,11111/udp"]
+        lines = ["The drone answers, but your firewall blocks its telemetry and video.", "", *how, "",
+                 "This message goes away by itself once it's allowed."]
+        box = pygame.Rect(0, 0, min(sw - 20, 680), 70 + 24 * len(lines))
+        box.center = (sw // 2, sh // 2)
+        self.panel(box, 210)
+        pygame.draw.rect(self.screen, (240, 70, 60), box, 3)
+        self.text("BLOCKED BY FIREWALL", (box.centerx, box.top + 12), (240, 70, 60), self.font_big, "midtop")
+        for i, line in enumerate(lines):
+            self.text(line, (box.centerx, box.top + 56 + 24 * i), font=self.font_small, anchor="midtop")
+
     def draw_land_failed(self):
         sw, sh = self.screen.get_size()
         keys, pad = self.settings["keys"], self.settings["pad"]
@@ -277,6 +307,8 @@ class HudDrawing:
             x = self.text(f"FLT {tm // 60}:{tm % 60:02d}", (x, 7)).right + 18
             temp = (st.get("templ", 0) + st.get("temph", 0)) / 2
             self.text(f"{temp:.0f}°C", (x, 7), (240, 70, 60) if temp > HOT_TEMP else (235, 235, 235))
+        elif t.blocked:
+            self.text("● BLOCKED BY FIREWALL" if blink else "○ BLOCKED BY FIREWALL", (x, 7), (240, 70, 60))
         else:
             self.text("● SEARCHING FOR TELLO" if blink else "○ SEARCHING FOR TELLO", (x, 7), (240, 200, 60))
         right = sw - 10

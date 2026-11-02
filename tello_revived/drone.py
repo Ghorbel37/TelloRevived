@@ -29,6 +29,9 @@ class Tello:
         self.state_time = 0.0
         self.session_time = 0.0
         self.session = False
+        # the drone answers commands but its telemetry never arrives: almost always a firewall,
+        # which lets replies to our commands through but blocks what the drone sends on its own
+        self.blocked = False
         self.wifi = None
         self.log_lines = deque(maxlen=6)
         self.running = True
@@ -110,6 +113,9 @@ class Tello:
             if state:
                 self.state = state
                 self.state_time = time.monotonic()
+                if self.blocked:
+                    self.blocked = False
+                    self.log("Telemetry is getting through now")
 
     def want_video(self):
         mode = self.settings["power"]["video"]
@@ -143,6 +149,9 @@ class Tello:
         while self.running:
             now = time.monotonic()
             if self.session and not self.connected and now - self.session_time > 3:
+                if self.state_time < self.session_time:  # nothing at all since we connected
+                    self._check_blocked()
+                    continue
                 self.session = False
                 self.log("Link lost - reconnecting")
             if not self.session:
@@ -169,6 +178,18 @@ class Tello:
                 if reply:
                     self.wifi = int(reply)
             time.sleep(0.25)
+
+    def _check_blocked(self):
+        """The drone answers but sends no telemetry: say so once, and keep checking it's there."""
+        if self.query("command", 1.0, lambda r: r == "ok"):
+            if not self.blocked:
+                self.blocked = True
+                self.log("The drone answers, but its telemetry is blocked - check the firewall")
+            self.session_time = time.monotonic()  # check again in 3 s, without reconnecting
+            time.sleep(0.5)
+        else:  # it stopped answering too: switched off or out of range
+            self.session = self.blocked = False
+            self.log("Link lost - reconnecting")
 
     def close(self):
         self.running = False

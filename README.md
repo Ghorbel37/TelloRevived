@@ -26,7 +26,7 @@ Fly a Ryze/DJI Tello from your computer with a gamepad or the keyboard: a big li
 3. Start the app. It shows which button takes off.
 
 Nothing needs installing. A few notes the first time:
-- **Windows:** when the firewall asks, allow the app on **Public** networks. Without that there's no video or telemetry.
+- **Windows:** when the firewall asks, allow the app on **Public** networks. If it's blocked, the app shows what to allow.
 - **macOS:** open the disk image and drag **Tello Revived.app** anywhere. It isn't signed, so right-click it and choose **Open** the first time.
 - **Linux:** make the file executable first (`chmod +x TelloRevived-*-portable`).
 

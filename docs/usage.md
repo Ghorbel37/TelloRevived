@@ -6,6 +6,7 @@
 - [Landing](#landing)
 - [Battery and heat](#battery-and-heat)
 - [Gamepads](#gamepads)
+- [Firewall](#firewall)
 
 ## Button guide
 
@@ -87,3 +88,9 @@ All of these are on the **Video & Power** page:
 - Gamepads that SDL knows (PlayStation, Xbox and most others) work out of the box. A PS3 controller on Windows works through DsHidMini in SDF or XInput mode.
 - If the top bar shows your gamepad as `(raw)`, SDL doesn't know its layout. Run `uv run tello-revived --joytest`, then put the axis and button numbers it shows into `RAW_MAP` in `tello_revived/gamepad.py`.
 - L2 and R2 can be bound like buttons. A firm pull counts as a press.
+
+## Firewall
+
+The drone sends its telemetry (port 8890) and video (port 11111) on its own, and a firewall blocks that unless the app is allowed. Replies to commands still get through, so the drone seems to connect but never shows data. When this happens, the app shows **BLOCKED BY FIREWALL**, with steps for your system and the exact program to allow. The message clears by itself once it's allowed.
+
+On Windows, the Tello's Wi-Fi usually counts as a Public network, so allow the app on **Public**, or on both Private and Public. When running from source, the program to allow is the installed Python, not the `.venv` one. The message shows its path.
