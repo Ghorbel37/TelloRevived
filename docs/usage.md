@@ -115,7 +115,7 @@ While the drone isn't connected, the app looks for its network (`TELLO-XXXXXX`, 
 
 It uses the system's own tools: `netsh` on Windows (the first time, it adds a Wi-Fi profile for the drone's open network, for your user only), `nmcli` on Linux, and `networksetup` on macOS. Switching to the drone's network disconnects your usual Wi-Fi, as switching by hand does.
 
-If the drone's Wi-Fi drops and the computer moves to another network, the app rejoins the drone's network as soon as it's visible again. To avoid undoing a switch you made on purpose after flying, it only does this within 2 minutes of losing the drone. **Flight → Rejoin the drone's Wi-Fi if it drops** turns it off.
+If the drone's Wi-Fi drops **while it's flying** and the computer moves to another network, the app rejoins the drone's network as soon as it's visible again, within 2 minutes. Switching networks while the drone is on the ground, or after landing, is left alone. **Flight → Rejoin the drone's Wi-Fi if it drops** turns it off.
 
 ## Sound alerts
 

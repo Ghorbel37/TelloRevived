@@ -87,11 +87,14 @@ def test_failed_connection_is_explained(app, monkeypatch):
     assert "Couldn't connect" in screen_text(app)
 
 
-def drop_wifi(app, monkeypatch, joined):
-    """Fly on TELLO-5A3C21, then the computer moves to another network and the drone goes quiet."""
+def drop_wifi(app, monkeypatch, joined, flying=True):
+    """On TELLO-5A3C21 (flying or not), then the computer moves to another network and the drone goes quiet."""
     monkeypatch.setattr(wifi, "current_network", lambda: "TELLO-5A3C21")
     monkeypatch.setattr(wifi, "connect", lambda ssid: joined.append(ssid))
     assert wait_until(app, lambda: app.tello.connected and app.drone_wifi == "TELLO-5A3C21")
+    if flying:
+        app.fake.state.update(h=100, tof=100)
+        assert wait_until(app, lambda: app.tello.flying)
     app.fake.telemetry = app.fake.answer = False
     monkeypatch.setattr(wifi, "current_network", lambda: "globalmet")
     monkeypatch.setattr(wifi, "drone_networks", lambda: ["TELLO-5A3C21"])
@@ -118,5 +121,12 @@ def test_rejoining_can_be_switched_off(app, monkeypatch):
     app.settings["flight"]["rejoin_wifi"] = False
     joined = []
     drop_wifi(app, monkeypatch, joined)
+    wait_until(app, lambda: False, timeout=2)
+    assert joined == []
+
+
+def test_switching_networks_on_the_ground_is_left_alone(app, monkeypatch):
+    joined = []
+    drop_wifi(app, monkeypatch, joined, flying=False)  # landed (or never took off), then you switch Wi-Fi
     wait_until(app, lambda: False, timeout=2)
     assert joined == []

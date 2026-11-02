@@ -77,6 +77,7 @@ class App(FlightActions, HudDrawing):
         self.wifi_status = None
         self.drone_wifi = None  # the network the drone answered on, to rejoin if the computer drops it
         self.drone_seen = 0.0  # when the drone was last connected
+        self.lost_while_flying = False  # whether it was in the air the last time it answered
         self.last_rejoin = 0.0
         if wifi.available():
             threading.Thread(target=self._watch_wifi, daemon=True).start()
@@ -259,7 +260,6 @@ class App(FlightActions, HudDrawing):
             if self.tello.connected or self.tello.blocked:
                 self.drone_networks = []
                 if self.tello.connected:
-                    self.drone_seen = time.monotonic()
                     if not self.drone_wifi and wifi.DRONE_NETWORK.match(current := wifi.current_network() or ""):
                         self.drone_wifi = current
             else:
@@ -270,13 +270,15 @@ class App(FlightActions, HudDrawing):
             time.sleep(WIFI_SCAN_EVERY)
 
     def _rejoin(self, seen):
-        """The drone was just lost and the computer moved to another network: go back to the drone's.
+        """The drone was lost mid-flight and the computer moved to another network: go back to the drone's.
 
-        Only shortly after losing it, so switching to another network after flying isn't undone.
+        Only if it was flying when it went quiet, and only shortly after: switching networks on the
+        ground, or after landing, is left alone.
         """
         now = time.monotonic()
         lost_recently = self.drone_seen and now - self.drone_seen < REJOIN_WITHIN
-        if (self.settings["flight"]["rejoin_wifi"] and lost_recently and self.drone_wifi in seen
+        if (self.settings["flight"]["rejoin_wifi"] and self.lost_while_flying and lost_recently
+                and self.drone_wifi in seen
                 and self.current_wifi != self.drone_wifi and now - self.last_rejoin > 10):
             self.last_rejoin = now
             self.tello.log(f"Wi-Fi moved away from {self.drone_wifi} - rejoining it")
@@ -503,6 +505,8 @@ class App(FlightActions, HudDrawing):
                 return False
             self.tello.log("Quit cancelled - the drone is still flying")
         self.check_battery()
+        if self.tello.connected:  # for rejoining the Wi-Fi: was it in the air when it went quiet?
+            self.drone_seen, self.lost_while_flying = time.monotonic(), self.tello.flying
         if self.tello.blocked != self.firewall_alerted:  # once each time it gets blocked
             self.firewall_alerted = self.tello.blocked
             if self.tello.blocked:

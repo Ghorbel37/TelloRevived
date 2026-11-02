@@ -55,7 +55,7 @@ HINTS = {
                "deadzone": "Ignores small stick drift", "expo": "Gentler near the centre, full at the edge",
                "retry_landing": "Resends land until it touches down", "land_attempts": "Failed landings before the warning",
                "takeoff_pause": "Ignores the sticks right after takeoff", "land_on_quit": "Quitting while flying lands first",
-               "rejoin_wifi": "Within 2 minutes of losing the drone, if the computer moved to another network"},
+               "rejoin_wifi": "Only if it drops mid-flight; switching networks on the ground is left alone"},
     "power": {"video": "Streaming heats the drone and uses battery", "resolution": "Lower uses less Wi-Fi and battery",
               "stream_fps": "Lower uses less battery", "bitrate": "Lower is smoother on weak Wi-Fi",
               "app_fps": "Lower saves PC battery", "auto_land_battery": "Lands by itself at this level",
