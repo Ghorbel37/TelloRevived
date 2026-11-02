@@ -7,7 +7,7 @@ import webbrowser
 import av
 import pygame
 
-from tello_revived import REPO_URL, VERSION
+from tello_revived import REPO_URL, VERSION, desktop
 from tello_revived.labels import key_label, pad_label
 from tello_revived.paths import MEDIA_DIR
 from tello_revived.settings import DRONE_MODELS, KEY_ACTIONS, PAD_ACTIONS, help_rows, stream_settings_supported
@@ -41,7 +41,8 @@ HINTS = {
     "hud": {"top_bar": "Battery, Wi-Fi, flight time, temperature", "flight_data": "Altitude, height, speed, climb rate",
             "heading": "Angle turned since power-on (no compass)", "attitude": "Shows the drone's tilt",
             "sticks": "Shows your stick positions", "messages": "Short status messages",
-            "hint_bar": "The buttons you can use right now", "video_fps": "Video frames received per second"},
+            "hint_bar": "The buttons you can use right now", "video_fps": "Video frames received per second",
+            "sound_alerts": "Beeps for low battery, auto-land, failed landing, refusals, firewall"},
     "drone": {"model": "Hides settings your drone can't use"},
     "flight": {"move_stick": "This stick moves; the other climbs and turns",
                "speed_slow": "Top speed in slow mode", "speed_normal": "Top speed in normal mode",
@@ -99,6 +100,7 @@ class Menu:
             items = [("top_bar", "Top bar (battery, Wi-Fi, flight time)"), ("flight_data", "Altitude / speed panel"),
                      ("heading", "Heading"), ("attitude", "Horizon line"), ("sticks", "Stick boxes"),
                      ("messages", "Messages"), ("hint_bar", "Button guide (bottom bar)"),
+                     ("sound_alerts", "Sound alerts"),
                      ("video_fps", "Video fps counter")]
             return [Row("toggle", label, "hud", k) for k, label in items] + [reset("hud", "HUD")]
         if name == "Flight":
@@ -140,6 +142,16 @@ class Menu:
             *self.media_rows(),
             reset("power", "video & power"),
         ]
+
+    def menu_entry_rows(self):
+        """Linux only: one button that adds the app to the applications menu, or removes it."""
+        if not desktop.supported():
+            return []
+        if desktop.installed():
+            return [Row("button", "Remove from the applications menu", fn=self.app.toggle_menu_entry,
+                        hint="Deletes the menu entry and icon this app added")]
+        return [Row("button", "Add to the applications menu", fn=self.app.toggle_menu_entry,
+                    hint="So it appears in your app menu, with its icon, pointing at this copy")]
 
     def update_rows(self):
         app = self.app
@@ -204,6 +216,7 @@ class Menu:
             Row("button", "Open the photos and videos folder", fn=lambda: webbrowser.open(media.as_uri()),
                 hint="Opens in your file manager"),
             *self.update_rows(),
+            *self.menu_entry_rows(),
             Row("info", ""),
             Row("info", f"Settings file:  {self.settings.path}"),
             Row("info", f"Photos/videos:  {media}"),

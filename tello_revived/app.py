@@ -15,7 +15,8 @@ from tello_revived.gamepad import Gamepad, shape
 from tello_revived.hud import MONO, HudDrawing
 from tello_revived.labels import key_label
 from tello_revived.menu import Menu
-from tello_revived import VERSION, firewall, folder_picker, updates, wifi
+from tello_revived.sounds import Sounds
+from tello_revived import VERSION, desktop, firewall, folder_picker, updates, wifi
 from tello_revived.paths import ICON_PATH, MEDIA_DIR
 from tello_revived.settings import SPEED_NAMES, Settings
 from tello_revived.video import Video
@@ -59,6 +60,10 @@ class App(FlightActions, HudDrawing):
         self.taking_off = False  # takeoff sent, no answer yet
         self.flight_log = FlightLog()
         self.flight_time = FlightTime()
+        self.sounds = Sounds()
+        self.sounds.enable(self.settings["hud"]["sound_alerts"])
+        self.low_battery_warned = False
+        self.firewall_alerted = False
         self.firewall_button = None  # where the HUD drew "Allow it now", for mouse clicks
         self.firewall_status = None  # what happened after pressing it
         self.drone_networks = []  # TELLO-... networks in range, while the drone isn't connected
@@ -94,6 +99,8 @@ class App(FlightActions, HudDrawing):
         self.menu.toggle("Keyboard")
 
     def on_setting_changed(self, section, key):
+        if section == "hud":
+            self.sounds.enable(self.settings["hud"]["sound_alerts"])
         stream_keys = (None, "resolution", "stream_fps", "bitrate")
         if (section == "drone" or section == "power" and key in stream_keys) and self.tello.session:
             threading.Thread(target=self.tello.apply_stream_settings, daemon=True).start()
@@ -165,6 +172,16 @@ class App(FlightActions, HudDrawing):
         self.settings["files"]["media_dir"] = str(path) if folder else ""
         self.settings.save()
         self.tello.log(f"Photos and videos now go to {path}")
+
+    def toggle_menu_entry(self):
+        """Linux: add Tello Revived to the applications menu, or remove it if it's there."""
+        if desktop.installed():
+            desktop.remove()
+            self.tello.log("Removed from the applications menu")
+        elif problem := desktop.add():
+            self.tello.log(f"Couldn't add to the applications menu: {problem}")
+        else:
+            self.tello.log("Added to the applications menu")
 
     def check_for_updates(self):
         """Ask GitHub for the latest release, in the background (at start, or from About)."""
@@ -427,6 +444,10 @@ class App(FlightActions, HudDrawing):
                 return False
             self.tello.log("Quit cancelled - the drone is still flying")
         self.check_battery()
+        if self.tello.blocked != self.firewall_alerted:  # once each time it gets blocked
+            self.firewall_alerted = self.tello.blocked
+            if self.tello.blocked:
+                self.sounds.play("error")
         self.flight_time.update(self.tello.flying, self.tello.state.get("bat"), time.monotonic())
         self.flight_log.update(self)
         if self.video.recording and not self.tello.want_video():

@@ -96,6 +96,7 @@ def pyinstaller(*args, slim=None):
            "--name", NAME, "--icon", str(icon),
            "--add-data", f"{ROOT / 'assets' / 'icon.png'}{sep}assets",
            "--add-data", f"{ROOT / 'assets' / 'selftest.h264'}{sep}assets",  # for --selftest
+           "--add-data", f"{ROOT / 'assets' / 'logo.png'}{sep}assets",  # the Linux menu entry's icon
            "--distpath", str(DIST / "pyinstaller"), "--workpath", str(ROOT / "build"),
            "--specpath", str(ROOT / "build"), "--paths", str(ROOT),
            # not used by the app; leaving them out makes the build smaller
