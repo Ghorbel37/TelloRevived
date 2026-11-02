@@ -149,8 +149,11 @@ class Menu:
                         fn=lambda: webbrowser.open(url), hint="Opens the release page in your browser")
         else:
             first = Row("info", app.update_state)
-        return [first, Row("toggle", "Check for updates at start", "app", "check_updates",
-                           hint="Asks GitHub once when the app starts")]
+        return [first,
+                Row("button", "Check for updates now", fn=app.check_for_updates,
+                    hint="Asks GitHub for the latest version"),
+                Row("toggle", "Check for updates when the app opens", "app", "check_updates",
+                    hint="Asks GitHub once at start; never shows anything while flying")]
 
     def media_rows(self):
         folder = str(self.app.media_dir())

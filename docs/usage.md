@@ -61,7 +61,9 @@ Changing things:
 - **Swapping the sticks:** **Flight → Move with** changes which stick moves and which one climbs and turns.
 - **Drone model:** **Flight → Drone model** sets Tello, Tello EDU or RoboMaster TT. Settings your drone can't use are hidden.
 - **Photos and videos folder:** at the bottom of **Video & Power**. It opens your system's folder dialog. **Use the default folder** switches back. On Linux this needs `zenity` or `kdialog`; without them, set `media_dir` in `config.json`.
-- **About:** shows the version, a link to this project, the photos and videos folder, and where your settings are saved. When a newer release is out, an **Update available** button opens its download page. The app asks GitHub once at start (with `curl`, which Windows, macOS and most Linux systems include). **Check for updates at start** turns this off.
+- **About:** shows the version, a link to this project, the photos and videos folder, and where your settings are saved. **Check for updates now** asks GitHub for the latest version. If there's a newer one, **Update available** opens its download page.
+
+The first time the app opens, it asks whether to check for updates each time it starts. You can answer with Y/N, Cross/Circle, or a click, and change it later with **Check for updates when the app opens**. It checks only at start, once. It never shows the question or a message while the drone is flying; the result just waits on the About page. The check uses `curl`, which Windows, macOS and most Linux systems include.
 
 Settings are saved in `config.json`. While the settings screen is open, only the gamepad flies the drone, and the emergency stop still works.
 

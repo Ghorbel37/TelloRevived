@@ -53,7 +53,7 @@ DEFAULTS = {
         "flight_log": False,  # a CSV of the telemetry for each flight, in the same folder (off unless chosen)
     },
     "app": {
-        "check_updates": True,  # ask GitHub once at start whether there's a newer release
+        "check_updates": None,  # ask GitHub at start for a newer release; None = ask the user first
     },
 }
 

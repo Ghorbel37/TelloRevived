@@ -15,13 +15,12 @@ from tello_revived.gamepad import Gamepad, shape
 from tello_revived.hud import MONO, HudDrawing
 from tello_revived.labels import key_label
 from tello_revived.menu import Menu
-from tello_revived import firewall, folder_picker, updates, wifi
+from tello_revived import VERSION, firewall, folder_picker, updates, wifi
 from tello_revived.paths import ICON_PATH, MEDIA_DIR
 from tello_revived.settings import SPEED_NAMES, Settings
 from tello_revived.video import Video
 
 RC_HZ = 20
-UPDATE_RETRY = 300.0  # seconds between update checks while offline (e.g. on the drone's Wi-Fi)
 WIFI_SCAN_EVERY = 5.0  # seconds between looks for the drone's network, while it isn't connected
 
 FLIP_DIRS = {"up": "f", "down": "b", "left": "l", "right": "r"}
@@ -69,11 +68,11 @@ class App(FlightActions, HudDrawing):
         if wifi.available():
             threading.Thread(target=self._watch_wifi, daemon=True).start()
         self.new_release = None  # (tag, url) of a newer release, once found
-        self.update_state = "Checking for updates..."
+        self.update_state = "Not checked"
+        self.ask_about_updates = self.settings["app"]["check_updates"] is None  # first run: ask
+        self.update_buttons = {}  # "yes"/"no" -> where the question's buttons are drawn
         if self.settings["app"]["check_updates"]:
-            threading.Thread(target=self._check_updates, daemon=True).start()
-        else:
-            self.update_state = "Update check is off"
+            self.check_for_updates()
         self.last_input = "pad"  # which device the button guide shows
         self.frame_surface = None  # the video frame on screen (already scaled to the window)
         self.shown_frame_id = -1
@@ -167,20 +166,32 @@ class App(FlightActions, HudDrawing):
         self.settings.save()
         self.tello.log(f"Photos and videos now go to {path}")
 
+    def check_for_updates(self):
+        """Ask GitHub for the latest release, in the background (at start, or from About)."""
+        if self.update_state == "Checking for updates...":
+            return
+        self.update_state = "Checking for updates..."
+        threading.Thread(target=self._check_updates, daemon=True).start()
+
     def _check_updates(self):
-        """Ask GitHub for the latest release; retry every few minutes while offline."""
-        while self.tello.running:
-            latest = updates.latest_release()
-            if latest:
-                if updates.is_newer(latest[0]):
-                    self.new_release = latest
-                    self.update_state = f"{latest[0]} is available"
-                    self.tello.log(f"Tello Revived {latest[0]} is available - see Settings > About")
-                else:
-                    self.update_state = "Up to date"
-                return
-            self.update_state = "Couldn't check for updates (offline?) - trying again later"
-            time.sleep(UPDATE_RETRY)
+        latest = updates.latest_release()
+        if not latest:
+            self.update_state = "Couldn't check for updates (offline?)"
+        elif updates.is_newer(latest[0]):
+            self.new_release = latest
+            self.update_state = f"{latest[0]} is available"
+            if not self.tello.flying:  # never a message while flying; About shows it anyway
+                self.tello.log(f"Tello Revived {latest[0]} is available - see Settings > About")
+        else:
+            self.update_state = f"Up to date (v{VERSION})"
+
+    def answer_update_question(self, yes):
+        """The first-run question: check for updates when the app opens?"""
+        self.ask_about_updates = False
+        self.settings["app"]["check_updates"] = yes
+        self.settings.save()
+        if yes:
+            self.check_for_updates()
 
     def _watch_wifi(self):
         """While the drone isn't connected, look for its network (TELLO-...) every few seconds."""
@@ -247,6 +258,8 @@ class App(FlightActions, HudDrawing):
             return self.emergency()
         if self.menu.is_open:
             return self.menu.handle_pad(b)
+        if self.ask_about_updates and not self.tello.flying and b in ("cross", "circle"):
+            return self.answer_update_question(b == "cross")
         if self.tello.blocked and b == "square":  # nothing to record while blocked anyway
             return self.allow_firewall()
         if self.drone_networks and not self.tello.connected and b == "square":
@@ -268,6 +281,9 @@ class App(FlightActions, HudDrawing):
             return True
         if self.menu.is_open:
             self.menu.handle_key(ev)
+            return True
+        if self.ask_about_updates and not self.tello.flying and sc in (pygame.KSCAN_Y, pygame.KSCAN_N):
+            self.answer_update_question(sc == pygame.KSCAN_Y)
             return True
         if self.tello.blocked and sc == pygame.KSCAN_F:
             self.allow_firewall()
@@ -374,7 +390,10 @@ class App(FlightActions, HudDrawing):
                     if self.menu.is_open:
                         self.menu.handle_mouse(ev)
                     elif ev.type == pygame.MOUSEBUTTONDOWN:
-                        if self.tello.blocked and self.firewall_button and self.firewall_button.collidepoint(ev.pos):
+                        clicked = [a for a, r in self.update_buttons.items() if r.collidepoint(ev.pos)]
+                        if self.ask_about_updates and clicked:
+                            self.answer_update_question(clicked[0] == "yes")
+                        elif self.tello.blocked and self.firewall_button and self.firewall_button.collidepoint(ev.pos):
                             self.allow_firewall()
                         elif self.wifi_button and self.wifi_button.collidepoint(ev.pos):
                             self.connect_wifi()

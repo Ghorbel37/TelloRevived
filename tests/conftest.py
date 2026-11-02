@@ -139,6 +139,7 @@ def app(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "WIFI_SCAN_EVERY", 0.2)
     monkeypatch.setattr(updates, "latest_release", lambda: None)  # no calls to GitHub from the tests
     the_app = app_module.App()
+    the_app.ask_about_updates = False  # the first-run question has its own tests
     the_app.fake = fake
     yield the_app
     the_app.video.close()

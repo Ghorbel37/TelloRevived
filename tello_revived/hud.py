@@ -124,6 +124,10 @@ class HudDrawing:
         if self.land_failed and t.flying:
             self.draw_land_failed()
 
+        self.update_buttons = {}
+        if self.ask_about_updates and not t.flying and not self.menu.is_open:
+            self.draw_update_question()
+
         if self.menu.is_open:
             self.menu.draw()
         elif bar:
@@ -268,6 +272,26 @@ class HudDrawing:
             self.text(self.wifi_status, (sw // 2, y), (240, 200, 60), self.font_small, "midtop")
             y += 24
         self.text(f"Press {self.help_keys()} for controls", (sw // 2, y), (160, 160, 160), self.font_small, "midtop")
+
+    def draw_update_question(self):
+        """First run only, and never while flying: may the app check for updates when it opens?"""
+        sw = self.screen.get_width()
+        box = pygame.Rect(0, 0, min(sw - 20, 600), 150)
+        box.midtop = (sw // 2, 46)
+        self.panel(box, 220)
+        pygame.draw.rect(self.screen, (120, 190, 255), box, 2)
+        self.text("Check for updates when the app opens?", (box.centerx, box.top + 14), font=self.font, anchor="midtop")
+        self.text("It asks GitHub for the latest version; nothing else is sent.", (box.centerx, box.top + 44),
+                  (170, 170, 170), self.font_small, "midtop")
+        self.text("You can change this later in Settings > About.", (box.centerx, box.top + 64),
+                  (170, 170, 170), self.font_small, "midtop")
+        on_pad = self.input_device() == "pad"
+        for answer, label, key, pad, x in (("yes", "Yes", "Y", "Cross", -70), ("no", "No", "N", "Circle", 70)):
+            img = self.font.render(f"{label} ({pad if on_pad else key})", True, (15, 18, 24))
+            rect = img.get_rect(midtop=(box.centerx + x, box.top + 98)).inflate(24, 10)
+            pygame.draw.rect(self.screen, (120, 190, 255) if answer == "yes" else (200, 205, 215), rect, border_radius=6)
+            self.screen.blit(img, img.get_rect(center=rect.center))
+            self.update_buttons[answer] = rect
 
     def draw_firewall_help(self):
         """The drone answers commands but its telemetry and video don't get through."""
