@@ -1,9 +1,17 @@
 """Gamepad input: SDL's standard controller mapping, or a raw joystick fallback."""
 
 import math
+import threading
 
 import pygame
 from pygame._sdl2 import controller as sdl_controller
+
+# Vibration for alerts, matching the sound alerts: (low motor, high motor, ms on, ms off) per pulse
+RUMBLE = {
+    "warning": [(0.5, 0.5, 200, 150), (0.5, 0.5, 200, 0)],                   # two pulses: low battery
+    "alarm": [(1.0, 1.0, 150, 100), (1.0, 1.0, 150, 100), (1.0, 1.0, 150, 0)],  # three strong ones
+    "error": [(0.8, 0.2, 450, 0)],                                           # one long rumble
+}
 
 # Only used when SDL doesn't recognise the pad as a standard controller.
 # Run with --joytest to find the right numbers for your pad.
@@ -102,6 +110,21 @@ class Gamepad:
         if value < TRIGGER_OFF:
             self.held.discard(name)
         return None
+
+    def rumble(self, name):
+        """Play a vibration pattern from RUMBLE, if the pad can vibrate."""
+        delay = 0.0
+        for low, high, on_ms, off_ms in RUMBLE.get(name, []):
+            threading.Timer(delay, self._pulse, (low, high, on_ms)).start()
+            delay += (on_ms + off_ms) / 1000
+
+    def _pulse(self, low, high, ms):
+        device = self.ctl or self.joy
+        if device:
+            try:
+                device.rumble(low, high, ms)
+            except pygame.error:
+                pass  # this pad (or driver mode) can't vibrate
 
     def axes(self):
         """lx, ly, rx, ry in -1..1 (y down = +), l2, r2 in 0..1."""

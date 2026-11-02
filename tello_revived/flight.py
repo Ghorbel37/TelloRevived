@@ -34,7 +34,7 @@ class FlightActions:
             reason = ("no reply from the drone" if not reply else
                       f"the drone said '{reply}' with no reason - put it on a flat surface, or restart it")
         self.tello.log(f"Take off refused: {reason}")
-        self.sounds.play("error")
+        self.alert("error")
 
     def takeoff_problem(self):
         """Why the drone will refuse to take off, if we can tell: only a low battery is certain."""
@@ -78,7 +78,7 @@ class FlightActions:
             if self.land_fails >= fl["land_attempts"]:
                 self.land_failed = True
                 self.tello.log(f"Landing failed {self.land_fails} times")
-                self.sounds.play("alarm")
+                self.alert("alarm")
                 break
             if fl["retry_landing"]:
                 self.tello.log(f"Landing stalled - retrying ({self.land_fails + 1}/{fl['land_attempts']})")
@@ -137,7 +137,7 @@ class FlightActions:
         if reply != "ok":
             self.tello.log(f"Drone refused the flip {name}: {reply or 'no reply'}"
                            f" (battery {self.tello.state.get('bat', 0):.0f}%)")
-            self.sounds.play("error")
+            self.alert("error")
 
     def flight_minutes_left(self):
         """Estimated minutes until auto-land (or the drone's own landing at about 10%), or None."""
@@ -153,9 +153,9 @@ class FlightActions:
         bat = self.tello.state.get("bat", 100)
         if not self.low_battery_warned and bat <= self.settings["power"]["low_battery_warning"]:
             self.low_battery_warned = True
-            self.sounds.play("warning")
+            self.alert("warning")
         if limit and not self.auto_landed and bat <= limit:
             self.auto_landed = True
             self.tello.log(f"Battery {bat:.0f}% - auto landing")
-            self.sounds.play("alarm")
+            self.alert("alarm")
             self.land()

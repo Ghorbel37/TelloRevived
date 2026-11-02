@@ -173,6 +173,12 @@ class App(FlightActions, HudDrawing):
         self.settings.save()
         self.tello.log(f"Photos and videos now go to {path}")
 
+    def alert(self, name):
+        """warning / alarm / error: a tone and a vibration, for whichever is switched on."""
+        self.sounds.play(name)
+        if self.settings["hud"]["vibration_alerts"]:
+            self.pad.rumble(name)
+
     def toggle_menu_entry(self):
         """Linux: add Tello Revived to the applications menu, or remove it if it's there."""
         if desktop.installed():
@@ -447,7 +453,7 @@ class App(FlightActions, HudDrawing):
         if self.tello.blocked != self.firewall_alerted:  # once each time it gets blocked
             self.firewall_alerted = self.tello.blocked
             if self.tello.blocked:
-                self.sounds.play("error")
+                self.alert("error")
         self.flight_time.update(self.tello.flying, self.tello.state.get("bat"), time.monotonic())
         self.flight_log.update(self)
         if self.video.recording and not self.tello.want_video():

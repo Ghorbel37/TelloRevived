@@ -32,6 +32,7 @@ DEFAULTS = {
         "top_bar": True, "flight_data": True, "heading": True, "attitude": True,
         "sticks": True, "messages": True, "hint_bar": True, "video_fps": True,
         "sound_alerts": False,  # beeps for low battery, auto-land, failed landing, refusals, firewall
+        "vibration_alerts": False,  # the same alerts as gamepad vibration
     },
     "drone": {
         "model": "tello",           # tello / edu / tt - only the RoboMaster TT (SDK 3.0) can change stream quality

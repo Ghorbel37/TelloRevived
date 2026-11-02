@@ -82,3 +82,33 @@ def test_menu_entry_is_one_button_that_adds_or_removes(app, linux_home):
 def test_no_menu_entry_button_outside_linux(app, monkeypatch):
     monkeypatch.setattr(desktop, "supported", lambda: False)
     assert app.menu.menu_entry_rows() == []
+
+
+def test_vibration_follows_its_own_setting(app, monkeypatch):
+    felt = []
+    monkeypatch.setattr(app.pad, "rumble", felt.append)
+    app.alert("error")
+    assert felt == []  # off by default
+    app.settings["hud"]["vibration_alerts"] = True
+    app.alert("alarm")
+    assert felt == ["alarm"]
+
+
+def test_vibration_patterns_reach_the_pad():
+    import time
+    from tello_revived.gamepad import Gamepad
+
+    class Pad:
+        pulses = []
+
+        def rumble(self, low, high, ms):
+            self.pulses.append((low, high, ms))
+            return True
+
+    pad = Gamepad()
+    pad.ctl = Pad()
+    pad.rumble("warning")
+    time.sleep(0.6)
+    assert pad.ctl.pulses == [(0.5, 0.5, 200), (0.5, 0.5, 200)]  # two pulses, one after the other
+    pad.ctl = None
+    pad.rumble("alarm")  # no pad: nothing happens, no error
