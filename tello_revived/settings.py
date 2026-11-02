@@ -21,11 +21,11 @@ DEFAULTS = {
         "photo": pygame.KSCAN_P, "record": pygame.KSCAN_R, "speed": None,
         "speed_slow": pygame.KSCAN_1, "speed_normal": pygame.KSCAN_2, "speed_fast": pygame.KSCAN_3,
         "help": pygame.KSCAN_H, "settings": pygame.KSCAN_O,
-        "fullscreen": pygame.KSCAN_F11, "quit": pygame.KSCAN_ESCAPE,
+        "fullscreen": pygame.KSCAN_F11, "quit": pygame.KSCAN_ESCAPE, "camera": pygame.KSCAN_V,
     },
     "pad": {
         "takeoff": "triangle", "land": "cross", "speed": "circle", "photo": "r1", "record": "square",
-        "flip": "l1", "precision": "l2", "menu": "start",
+        "flip": "l1", "precision": "l2", "menu": "start", "camera": None,
         "emergency_1": "select", "emergency_2": "start",
     },
     "hud": {
@@ -75,13 +75,14 @@ KEY_ACTIONS = [
     ("photo", "Photo"), ("record", "Start / stop recording"), ("speed", "Cycle speed mode"),
     ("speed_slow", "Speed: slow"), ("speed_normal", "Speed: normal"), ("speed_fast", "Speed: fast"),
     ("help", "Help"), ("settings", "Settings"), ("fullscreen", "Fullscreen"), ("quit", "Quit"),
+    ("camera", "Front / down camera (EDU, TT)"),
 ]
 
 PAD_ACTIONS = [
     ("takeoff", "Take off"), ("land", "Land"), ("speed", "Cycle speed mode"),
     ("photo", "Photo"), ("record", "Start / stop recording"),
     ("flip", "Flip (hold + D-pad)"), ("precision", "Precision (hold)"),
-    ("menu", "Help / settings"),
+    ("menu", "Help / settings"), ("camera", "Front / down camera (EDU, TT)"),
     ("emergency_1", "EMERGENCY button 1"), ("emergency_2", "EMERGENCY button 2 (press both)"),
 ]
 
@@ -148,6 +149,7 @@ def help_rows(settings):
         ("Flip", f"{k['flip']} + move key", f"{p['flip']} + D-pad"),
         ("EMERGENCY motor stop", k["emergency"], f"{p['emergency_1']} + {p['emergency_2']}"),
         ("Help / settings", f"{k['help']} / {k['settings']}", p["menu"]),
+        ("Front / down camera (EDU, TT)", k["camera"], p["camera"]),
         ("Fullscreen", k["fullscreen"], "-"),
         ("Quit (lands first)", k["quit"], "-"),
     ]

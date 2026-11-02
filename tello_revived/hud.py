@@ -178,7 +178,10 @@ class HudDrawing:
             items += [(b("land"), "Land", None),
                       (speed, f"Speed: {SPEED_NAMES[self.speed_idx]}", None),
                       *self.camera_items(b),
-                      (b("flip"), "Hold: flips", None)] + help_items
+                      (b("flip"), "Hold: flips", None)]
+            if self.settings["drone"]["model"] in ("edu", "tt"):
+                items.append((b("camera"), "Front camera" if self.camera_down else "Down camera", None))
+            items += help_items
             mode = (("LANDING", amber) if self.landing else ("TAKING OFF", amber) if not t.flying
                     else ("FLYING", (90, 220, 120)))
         elif t.connected:

@@ -60,6 +60,7 @@ class App(FlightActions, HudDrawing):
         self.taking_off = False  # takeoff sent, no answer yet
         self.flight_log = FlightLog()
         self.flight_time = FlightTime()
+        self.camera_down = False  # EDU / RoboMaster TT: streaming the downward camera
         self.sounds = Sounds()
         self.sounds.enable(self.settings["hud"]["sound_alerts"])
         self.low_battery_warned = False
@@ -172,6 +173,23 @@ class App(FlightActions, HudDrawing):
         self.settings["files"]["media_dir"] = str(path) if folder else ""
         self.settings.save()
         self.tello.log(f"Photos and videos now go to {path}")
+
+    def switch_camera(self):
+        """Tello EDU / RoboMaster TT: switch the video between the front and the downward camera."""
+        if self.settings["drone"]["model"] not in ("edu", "tt"):
+            return self.tello.log("Only the Tello EDU and RoboMaster TT have a downward camera (Flight > Drone model)")
+        if not self.tello.connected:
+            return self.tello.log("Not connected")
+        threading.Thread(target=self._switch_camera, args=(not self.camera_down,), daemon=True).start()
+
+    def _switch_camera(self, down):
+        # "downvision" isn't in the official SDK guides, but the EDU (recent firmware) and the TT accept it
+        reply = self.tello.query(f"downvision {int(down)}", 2.0)
+        if reply == "ok":
+            self.camera_down = down
+            self.tello.log("Camera: down" if down else "Camera: front")
+        else:
+            self.tello.log(f"The drone didn't switch cameras ({reply or 'no reply'}) - its firmware may be too old")
 
     def alert(self, name):
         """warning / alarm / error: a tone and a vibration, for whichever is switched on."""
@@ -296,7 +314,8 @@ class App(FlightActions, HudDrawing):
         if b in FLIP_DIRS and pad["flip"] in self.pad.held:
             return self.flip(FLIP_DIRS[b])
         actions = {"takeoff": self.takeoff, "land": self.land, "speed": self.cycle_speed,
-                   "photo": self.photo, "record": self.toggle_record, "menu": self.toggle_help}
+                   "photo": self.photo, "record": self.toggle_record, "menu": self.toggle_help,
+                   "camera": self.switch_camera}
         for action, fn in actions.items():
             if pad[action] == b:
                 fn()
@@ -332,7 +351,7 @@ class App(FlightActions, HudDrawing):
                    "speed_slow": lambda: self.cycle_speed(0), "speed_normal": lambda: self.cycle_speed(1),
                    "speed_fast": lambda: self.cycle_speed(2), "photo": self.photo,
                    "record": self.toggle_record, "help": self.toggle_help, "settings": self.toggle_settings,
-                   "fullscreen": self.toggle_fullscreen}
+                   "fullscreen": self.toggle_fullscreen, "camera": self.switch_camera}
         for action, fn in actions.items():
             if keys[action] == sc:
                 fn()

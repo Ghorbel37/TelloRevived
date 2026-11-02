@@ -35,9 +35,11 @@ _ACTIONS = {"precision": "Hold for slow, fine moves", "takeoff": "Takes off and 
 HINTS = {
     "keys": {**_MOVE, **_ACTIONS, "flip": "Hold, then a move key to flip that way", "help": "Shows the controls",
              "settings": "Opens this screen", "fullscreen": "Fullscreen on / off",
-             "quit": "Quits - lands first if flying"},
+             "quit": "Quits - lands first if flying",
+             "camera": "Tello EDU / RoboMaster TT: switch to the downward camera and back"},
     "pad": {**_ACTIONS, "flip": "Hold, then the D-pad to flip that way", "menu": "Opens help and settings",
-            "emergency_1": "Press both emergency buttons together", "emergency_2": "Press both emergency buttons together"},
+            "emergency_1": "Press both emergency buttons together", "emergency_2": "Press both emergency buttons together",
+            "camera": "Tello EDU / RoboMaster TT: switch to the downward camera and back"},
     "hud": {"top_bar": "Battery, Wi-Fi, flight time, temperature", "flight_data": "Altitude, height, speed, climb rate",
             "heading": "Angle turned since power-on (no compass)", "attitude": "Shows the drone's tilt",
             "sticks": "Shows your stick positions", "messages": "Short status messages",
