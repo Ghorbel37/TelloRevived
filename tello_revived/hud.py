@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pygame
 
-from tello_revived import firewall
+from tello_revived import firewall, wifi
 from tello_revived.flight import HOT_TEMP
 from tello_revived.labels import key_label, pad_label
 from tello_revived.settings import SPEED_NAMES
@@ -73,10 +73,7 @@ class HudDrawing:
         if t.blocked and not t.connected:
             self.draw_firewall_help()
         elif not t.connected:
-            self.text("Connect this PC's Wi-Fi to TELLO-XXXXXX and power on the drone",
-                      (sw // 2, sh // 2), (220, 220, 220), anchor="center")
-            self.text(f"Press {self.help_keys()} for controls", (sw // 2, sh // 2 + 30), (160, 160, 160),
-                      self.font_small, "center")
+            self.draw_connect_help()
         else:
             video_mode = self.settings["power"]["video"]
             if video_mode == "off":
@@ -189,6 +186,8 @@ class HudDrawing:
             mode = ("BLOCKED", red)
         else:
             items = help_items + [(k("quit"), "Quit", None)]
+            if self.drone_networks:
+                items.insert(0, ("Square" if on_pad else "C", f"Connect to {self.drone_networks[0]}", None))
             mode = ("OFFLINE", (150, 150, 150))
         return mode, [(btn, what, col) for btn, what, col in items if btn and btn != "-"]
 
@@ -246,6 +245,29 @@ class HudDrawing:
         else:
             self.text("Check there is space around and above the drone", (sw // 2, rect.bottom + 6),
                       (170, 170, 170), self.font_small, "midtop")
+
+    def draw_connect_help(self):
+        """Not connected: what to do, with a button when a drone network is in range."""
+        sw, sh = self.screen.get_size()
+        self.wifi_button = None
+        if self.current_wifi and wifi.DRONE_NETWORK.match(self.current_wifi):
+            title = f"On {self.current_wifi} - waiting for the drone to answer..."
+        else:
+            title = "Connect this computer's Wi-Fi to TELLO-XXXXXX and power on the drone"
+        self.text(title, (sw // 2, sh // 2), (220, 220, 220), anchor="center")
+        y = sh // 2 + 30
+        if self.drone_networks:
+            keys = "C or Square" if self.pad.name else "C"
+            label = self.font.render(f"Connect to {self.drone_networks[0]} ({keys})", True, (15, 18, 24))
+            rect = label.get_rect(midtop=(sw // 2, y)).inflate(28, 12)
+            pygame.draw.rect(self.screen, (120, 190, 255), rect, border_radius=6)
+            self.screen.blit(label, label.get_rect(center=rect.center))
+            self.wifi_button = rect
+            y = rect.bottom + 10
+        if self.wifi_status:
+            self.text(self.wifi_status, (sw // 2, y), (240, 200, 60), self.font_small, "midtop")
+            y += 24
+        self.text(f"Press {self.help_keys()} for controls", (sw // 2, y), (160, 160, 160), self.font_small, "midtop")
 
     def draw_firewall_help(self):
         """The drone answers commands but its telemetry and video don't get through."""

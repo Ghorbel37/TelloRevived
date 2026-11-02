@@ -22,7 +22,7 @@ Fly a Ryze/DJI Tello from your computer with a gamepad or the keyboard: a big li
    - **Windows:** `…-windows-x64-portable.exe`
    - **macOS:** `…-macos-arm64-portable.dmg` (Apple silicon) or `…-macos-x64-portable.dmg` (Intel)
    - **Linux:** `…-linux-x64-portable`
-2. Turn on the Tello and connect your computer's Wi-Fi to `TELLO-XXXXXX`.
+2. Turn on the Tello and connect your computer's Wi-Fi to `TELLO-XXXXXX`, or press **Connect** in the app once it finds the network.
 3. Start the app. It shows which button takes off.
 
 Nothing needs installing. A few notes the first time:

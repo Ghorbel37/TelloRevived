@@ -14,12 +14,13 @@ from tello_revived.gamepad import Gamepad, shape
 from tello_revived.hud import MONO, HudDrawing
 from tello_revived.labels import key_label
 from tello_revived.menu import Menu
-from tello_revived import firewall, folder_picker
+from tello_revived import firewall, folder_picker, wifi
 from tello_revived.paths import ICON_PATH, MEDIA_DIR
 from tello_revived.settings import SPEED_NAMES, Settings
 from tello_revived.video import Video
 
 RC_HZ = 20
+WIFI_SCAN_EVERY = 5.0  # seconds between looks for the drone's network, while it isn't connected
 
 FLIP_DIRS = {"up": "f", "down": "b", "left": "l", "right": "r"}
 MOVE_FLIPS = {"forward": "f", "back": "b", "left": "l", "right": "r"}
@@ -58,6 +59,12 @@ class App(FlightActions, HudDrawing):
         self.flight_log = FlightLog()
         self.firewall_button = None  # where the HUD drew "Allow it now", for mouse clicks
         self.firewall_status = None  # what happened after pressing it
+        self.drone_networks = []  # TELLO-... networks in range, while the drone isn't connected
+        self.current_wifi = None  # the network this computer is on
+        self.wifi_button = None
+        self.wifi_status = None
+        if wifi.available():
+            threading.Thread(target=self._watch_wifi, daemon=True).start()
         self.last_input = "pad"  # which device the button guide shows
         self.frame_surface = None  # the video frame on screen (already scaled to the window)
         self.shown_frame_id = -1
@@ -151,6 +158,34 @@ class App(FlightActions, HudDrawing):
         self.settings.save()
         self.tello.log(f"Photos and videos now go to {path}")
 
+    def _watch_wifi(self):
+        """While the drone isn't connected, look for its network (TELLO-...) every few seconds."""
+        while self.tello.running:
+            if self.tello.connected or self.tello.blocked:
+                self.drone_networks = []
+            else:
+                self.current_wifi = wifi.current_network()
+                self.drone_networks = [n for n in wifi.drone_networks() if n != self.current_wifi]
+            time.sleep(WIFI_SCAN_EVERY)
+
+    def connect_wifi(self):
+        """Join the first drone network found (the system's tools do it; takes a few seconds)."""
+        if not self.drone_networks or (self.wifi_status or "").startswith("Connecting"):
+            return
+        ssid = self.drone_networks[0]
+        self.wifi_status = f"Connecting to {ssid}..."
+        threading.Thread(target=self._connect_wifi, args=(ssid,), daemon=True).start()
+
+    def _connect_wifi(self, ssid):
+        problem = wifi.connect(ssid)
+        if problem:
+            self.wifi_status = f"Couldn't connect to {ssid}: {problem}"
+        else:
+            self.wifi_status = None
+            self.current_wifi = ssid
+            self.drone_networks = []
+            self.tello.log(f"Connected to {ssid}")
+
     def allow_firewall(self):
         """Ask the system (with its admin prompt) to let the drone's telemetry and video in."""
         if not firewall.can_allow():
@@ -190,6 +225,8 @@ class App(FlightActions, HudDrawing):
             return self.menu.handle_pad(b)
         if self.tello.blocked and b == "square":  # nothing to record while blocked anyway
             return self.allow_firewall()
+        if self.drone_networks and not self.tello.connected and b == "square":
+            return self.connect_wifi()
         if b in FLIP_DIRS and pad["flip"] in self.pad.held:
             return self.flip(FLIP_DIRS[b])
         actions = {"takeoff": self.takeoff, "land": self.land, "speed": self.cycle_speed,
@@ -210,6 +247,9 @@ class App(FlightActions, HudDrawing):
             return True
         if self.tello.blocked and sc == pygame.KSCAN_F:
             self.allow_firewall()
+            return True
+        if self.drone_networks and not self.tello.connected and sc == pygame.KSCAN_C:
+            self.connect_wifi()
             return True
         if keys["flip"] in self.held_scans:
             for action, d in MOVE_FLIPS.items():
@@ -309,9 +349,11 @@ class App(FlightActions, HudDrawing):
                 elif ev.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEWHEEL):
                     if self.menu.is_open:
                         self.menu.handle_mouse(ev)
-                    elif (ev.type == pygame.MOUSEBUTTONDOWN and self.tello.blocked and self.firewall_button
-                          and self.firewall_button.collidepoint(ev.pos)):
-                        self.allow_firewall()
+                    elif ev.type == pygame.MOUSEBUTTONDOWN:
+                        if self.tello.blocked and self.firewall_button and self.firewall_button.collidepoint(ev.pos):
+                            self.allow_firewall()
+                        elif self.wifi_button and self.wifi_button.collidepoint(ev.pos):
+                            self.connect_wifi()
                 elif ev.type == pygame.WINDOWMINIMIZED:
                     minimized = True
                 elif ev.type in (pygame.WINDOWRESTORED, pygame.WINDOWMAXIMIZED, pygame.WINDOWSHOWN):

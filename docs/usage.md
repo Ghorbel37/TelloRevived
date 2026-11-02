@@ -6,6 +6,7 @@
 - [Landing](#landing)
 - [Battery and heat](#battery-and-heat)
 - [Gamepads](#gamepads)
+- [Connecting to the drone's Wi-Fi](#connecting-to-the-drones-wi-fi)
 - [Flight logs](#flight-logs)
 - [Firewall](#firewall)
 
@@ -89,6 +90,12 @@ All of these are on the **Video & Power** page:
 - Gamepads that SDL knows (PlayStation, Xbox and most others) work out of the box. A PS3 controller on Windows works through DsHidMini in SDF or XInput mode.
 - If the top bar shows your gamepad as `(raw)`, SDL doesn't know its layout. Run `uv run tello-revived --joytest`, then put the axis and button numbers it shows into `RAW_MAP` in `tello_revived/gamepad.py`.
 - L2 and R2 can be bound like buttons. A firm pull counts as a press.
+
+## Connecting to the drone's Wi-Fi
+
+While the drone isn't connected, the app looks for its network (`TELLO-XXXXXX`, or `RMTT-XXXXXX` for a RoboMaster TT) every few seconds. When it finds one, **Connect to TELLO-XXXXXX** appears: click it, press **C**, or **Square** on the gamepad. If you're already on the drone's network but it doesn't answer, the screen says so.
+
+It uses the system's own tools: `netsh` on Windows (the first time, it adds a Wi-Fi profile for the drone's open network, for your user only), `nmcli` on Linux, and `networksetup` on macOS. Switching to the drone's network disconnects your usual Wi-Fi, as switching by hand does.
 
 ## Flight logs
 
