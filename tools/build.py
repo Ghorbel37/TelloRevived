@@ -17,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -112,6 +113,18 @@ def pyinstaller(*args, slim=None):
     return DIST / "pyinstaller"
 
 
+def make_dmg(app, dmg, tries=5):
+    """Pack the .app into a disk image. hdiutil sometimes fails with "Resource busy" (often while
+    macOS is still scanning the new files), so it's retried a few times."""
+    cmd = ["hdiutil", "create", "-volname", "Tello Revived", "-srcfolder", str(app), "-format", "UDZO", "-ov", str(dmg)]
+    for attempt in range(1, tries + 1):
+        if subprocess.run(cmd).returncode == 0:
+            return
+        print(f"hdiutil failed (try {attempt} of {tries})")
+        time.sleep(10 * attempt)
+    sys.exit("couldn't create the disk image")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--slim-ffmpeg", type=Path, metavar="DIR",
@@ -129,8 +142,7 @@ def main():
         app = app.rename(app.with_name("Tello Revived.app"))
         final = DIST / f"{base}-macos-{arch()}-portable.dmg"
         # an .app is a folder; a disk image hands it out as one file (open it, drag the app anywhere)
-        subprocess.run(["hdiutil", "create", "-volname", "Tello Revived", "-srcfolder", str(app),
-                        "-format", "UDZO", "-ov", str(final)], check=True)
+        make_dmg(app, final)
     else:
         out = pyinstaller("--onefile", slim=slim) / NAME
         final = DIST / f"{base}-linux-{arch()}-portable"
