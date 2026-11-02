@@ -144,7 +144,9 @@ def main():
         # an .app is a folder; a disk image hands it out as one file (open it, drag the app anywhere)
         make_dmg(app, final)
     else:
-        out = pyinstaller("--onefile", slim=slim) / NAME
+        # strip the debug symbols Python and PyAV's Linux libraries carry (about half the file);
+        # not on macOS, where it can get in the way of code signing
+        out = pyinstaller("--onefile", "--strip", slim=slim) / NAME
         final = DIST / f"{base}-linux-{arch()}-portable"
         out.replace(final)
     print(f"built {final} ({final.stat().st_size / 1e6:.0f} MB)")
