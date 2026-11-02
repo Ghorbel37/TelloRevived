@@ -57,6 +57,7 @@ Changing things:
 - **Short hints:** the highlighted setting's hint appears just above the bottom bar.
 - **Swapping the sticks:** **Flight → Move with** changes which stick moves and which one climbs and turns.
 - **Drone model:** **Flight → Drone model** sets Tello, Tello EDU or RoboMaster TT. Settings your drone can't use are hidden.
+- **Photos and videos folder:** at the bottom of **Video & Power**. It opens your system's folder dialog. **Use the default folder** switches back. On Linux this needs `zenity` or `kdialog`; without them, set `media_dir` in `config.json`.
 - **About:** shows the version, a link to this project, the photos and videos folder, and where your settings are saved.
 
 Settings are saved in `config.json`. While the settings screen is open, only the gamepad flies the drone, and the emergency stop still works.

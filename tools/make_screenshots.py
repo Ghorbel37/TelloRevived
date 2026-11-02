@@ -47,6 +47,7 @@ def landscape(w=960, h=720):
 
 pygame.init(); sdl_controller.init()
 app = App()
+app.media_dir = lambda: Path("media")  # don't show this computer's folders
 frame = landscape()
 app.video.frame = ((960, 720), 960 * 3, frame.tobytes()); app.video.frame_id = 1
 app.video.native_size = (960, 720)

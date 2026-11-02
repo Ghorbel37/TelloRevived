@@ -137,8 +137,20 @@ class Menu:
             Row("choice", "Auto-land at battery", "power", "auto_land_battery",
                 [(0, "Off")] + [(n, f"{n}%") for n in (10, 15, 20, 25, 30)]),
             Row("number", "Low battery warning", "power", "low_battery_warning", lo=5, hi=50, step=5, fmt="{}%"),
+            *self.media_rows(),
             reset("power", "video & power"),
         ]
+
+    def media_rows(self):
+        folder = str(self.app.media_dir())
+        if len(folder) > 48:
+            folder = "..." + folder[-45:]
+        rows = [Row("button", f"Photos and videos: {folder}", fn=self.app.choose_media_dir,
+                    hint="Choose where photos and recordings are saved")]
+        if self.settings["files"]["media_dir"]:
+            rows.append(Row("button", "Use the default folder", fn=lambda: self.app.set_media_dir(""),
+                            hint=f"Back to {MEDIA_DIR}"))
+        return rows
 
     # ---- open / close --------------------------------------------------------
 
@@ -166,7 +178,7 @@ class Menu:
         self.app.on_setting_changed(section, key)
 
     def about_rows(self):
-        media = MEDIA_DIR
+        media = self.app.media_dir()
         return [
             Row("text", f"Tello Revived v{VERSION}"),
             Row("info", "Fly a DJI/Ryze Tello from your computer with a gamepad or keyboard."),

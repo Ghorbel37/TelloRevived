@@ -48,6 +48,9 @@ DEFAULTS = {
         "bitrate": "default",       # default / auto / 1..5 Mbps
         "app_fps": 60, "auto_land_battery": 0, "low_battery_warning": 20,
     },
+    "files": {
+        "media_dir": "",  # where photos and recordings go; empty = the media folder next to the app
+    },
 }
 
 DRONE_MODELS = [("tello", "Tello"), ("edu", "Tello EDU"), ("tt", "RoboMaster TT")]

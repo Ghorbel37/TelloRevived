@@ -3,6 +3,7 @@
 import datetime
 import threading
 import time
+from pathlib import Path
 
 import pygame
 
@@ -12,6 +13,7 @@ from tello_revived.gamepad import Gamepad, shape
 from tello_revived.hud import MONO, HudDrawing
 from tello_revived.labels import key_label
 from tello_revived.menu import Menu
+from tello_revived import folder_picker
 from tello_revived.paths import ICON_PATH, MEDIA_DIR
 from tello_revived.settings import SPEED_NAMES, Settings
 from tello_revived.video import Video
@@ -57,7 +59,7 @@ class App(FlightActions, HudDrawing):
         self.font = pygame.font.SysFont(MONO, 18, bold=True)
         self.font_big = pygame.font.SysFont(MONO, 30, bold=True)
         self.font_small = pygame.font.SysFont(MONO, 15)
-        MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+        self.media_dir().mkdir(parents=True, exist_ok=True)
 
     # ---- camera and display ------------------------------------------------
 
@@ -91,10 +93,11 @@ class App(FlightActions, HudDrawing):
     def photo(self):
         if not self.camera_live():
             return self.tello.log(f"No photo: {self.camera_off_reason()}")
-        path = MEDIA_DIR / f"photo_{stamp()}.png"
+        folder = self.media_dir()
+        path = folder / f"photo_{stamp()}.png"
         n = 2
         while path.exists():  # several photos in the same second
-            path = MEDIA_DIR / f"photo_{stamp()}_{n}.png"
+            path = folder / f"photo_{stamp()}_{n}.png"
             n += 1
         size, pitch, rgb = self.video.snapshot()  # full size, not the window-sized picture
         pygame.image.save(pygame.image.frombuffer(rgb, size, "RGB", pitch), str(path))
@@ -107,8 +110,41 @@ class App(FlightActions, HudDrawing):
         elif not self.camera_live():
             self.tello.log(f"Not recording: {self.camera_off_reason()}")
         else:
-            self.video.start_recording(MEDIA_DIR / f"video_{stamp()}.h264")
+            self.video.start_recording(self.media_dir() / f"video_{stamp()}.h264")
             self.tello.log("Recording")
+
+    def media_dir(self):
+        """Where photos and recordings go: the folder chosen in settings, or the default one."""
+        chosen = self.settings["files"]["media_dir"]
+        return Path(chosen) if chosen else MEDIA_DIR
+
+    def choose_media_dir(self):
+        """Ask for a new photos and videos folder with the system's folder dialog."""
+        if not folder_picker.available():
+            return self.tello.log("No folder dialog on this system: set media_dir in config.json")
+        if self.fullscreen:
+            self.toggle_fullscreen()  # the dialog would open behind a fullscreen window
+        # in a thread, so the drone keeps getting stick commands while the dialog is open
+        threading.Thread(target=self._pick_media_dir, daemon=True).start()
+
+    def _pick_media_dir(self):
+        chosen = folder_picker.pick_folder("Folder for Tello Revived photos and videos", self.media_dir())
+        if chosen:
+            self.set_media_dir(chosen)
+
+    def set_media_dir(self, folder):
+        """Use folder for photos and recordings ("" = the default), if it can be written to."""
+        path = Path(folder) if folder else MEDIA_DIR
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            probe = path / ".tello_revived_write_test"
+            probe.write_bytes(b"")
+            probe.unlink()
+        except OSError as e:
+            return self.tello.log(f"Can't save to {path}: {e.strerror or e}")
+        self.settings["files"]["media_dir"] = str(path) if folder else ""
+        self.settings.save()
+        self.tello.log(f"Photos and videos now go to {path}")
 
     def toggle_fullscreen(self):
         self.fullscreen = not self.fullscreen
