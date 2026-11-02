@@ -54,16 +54,16 @@ app.video.native_size = (960, 720)
 app.video.fps = 30.0
 app.tello.wifi = 82
 app.pad.name = "PLAYSTATION(R)3 Controller"
-state = {"pitch": -4, "roll": 6, "yaw": 37, "vgx": 9, "vgy": 2, "vgz": -3, "templ": 58, "temph": 61,
+state = {"pitch": 0, "roll": 0, "yaw": 37, "vgx": 9, "vgy": 2, "vgz": -3, "templ": 58, "temph": 61,
          "tof": 182, "h": 170, "bat": 76, "time": 94}
 
 
-def shot(name, setup=lambda: None):
+def shot(name, setup=lambda: None, sticks=(0.0, 0.55, 0.0, 0.2)):
     app.tello.state = dict(state)
     app.tello.state_time = time.monotonic() + 1000
     app.video.frame_time = time.monotonic() + 1000
     setup()
-    app.sticks = (0.0, 0.55, 0.0, 0.2)
+    app.sticks = sticks  # what the stick boxes show
     app.draw_hud(app.draw_video())
     pygame.image.save(app.screen, str(out / f"{name}.png"))
 
@@ -76,7 +76,7 @@ app.tello.log_lines.clear()
 
 def ready():
     app.tello.state.update(h=0, tof=10, time=0, vgx=0, vgy=0, vgz=0)
-shot("ready", ready)
+shot("ready", ready, sticks=(0.0, 0.0, 0.0, 0.0))  # on the ground: sticks at rest
 
 
 def flip():
