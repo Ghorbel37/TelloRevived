@@ -43,9 +43,21 @@ else
 fi
 
 cd "$WORK"
-[ -f "ffmpeg-$VERSION.tar.xz" ] || curl -sSfL -o "ffmpeg-$VERSION.tar.xz" "https://ffmpeg.org/releases/ffmpeg-$VERSION.tar.xz"
+# the source: from ffmpeg.org, or FFmpeg's GitHub mirror (the same release, tagged n<version>) if
+# ffmpeg.org can't be reached; each download is retried a few times
+download() { curl -sSfL --retry 5 --retry-all-errors --retry-delay 5 -o "$1.part" "$2" && mv "$1.part" "$1"; }
+if [ ! -f "ffmpeg-$VERSION.tar.xz" ] && [ ! -f "ffmpeg-$VERSION.tar.gz" ]; then
+    download "ffmpeg-$VERSION.tar.xz" "https://ffmpeg.org/releases/ffmpeg-$VERSION.tar.xz" ||
+        { echo "ffmpeg.org unreachable, using the GitHub mirror"
+          download "ffmpeg-$VERSION.tar.gz" "https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n$VERSION.tar.gz"; }
+fi
 rm -rf "ffmpeg-$VERSION" install
-tar -xf "ffmpeg-$VERSION.tar.xz"
+mkdir "ffmpeg-$VERSION"
+if [ -f "ffmpeg-$VERSION.tar.xz" ]; then
+    tar -xf "ffmpeg-$VERSION.tar.xz" --strip-components=1 -C "ffmpeg-$VERSION"
+else
+    tar -xzf "ffmpeg-$VERSION.tar.gz" --strip-components=1 -C "ffmpeg-$VERSION"
+fi
 cd "ffmpeg-$VERSION"
 # shellcheck disable=SC2086  # PLATFORM is several options
 ./configure --prefix="$WORK/install" $PLATFORM \
