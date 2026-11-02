@@ -2,6 +2,7 @@
 
 - [Button guide](#button-guide)
 - [Controls in detail](#controls-in-detail)
+- [Units](#units)
 - [Video delay](#video-delay)
 - [Settings screen](#settings-screen)
 - [Landing](#landing)
@@ -45,6 +46,10 @@ It shows the gamepad's buttons after you touch the gamepad, and the keyboard's k
 - If a takeoff is refused, the app gives the likely reason (battery too low, drone too hot). A low battery is shown before you try; a hot drone only gets a warning, because Tellos often fly fine when hot.
 - Quitting while flying lands first. Press the quit key again to quit right away.
 - The Tello EDU and RoboMaster TT can stream their downward camera instead (black and white, lower resolution). Set the model in **Flight → Drone model** for the switch to appear. The command isn't in the official SDK guides; it works with recent firmware, and the app says so if the drone refuses.
+
+## Units
+
+**HUD → Units** sets how height and speed are shown: **Metric (m, m/s)**, **Metric (m, km/h)**, or **Imperial (ft, mph)**. Climb rate stays in m/s, or ft/s for imperial. Flight logs always use the drone's own units (cm, dm/s).
 
 ## Video delay
 

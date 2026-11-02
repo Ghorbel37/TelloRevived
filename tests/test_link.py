@@ -38,3 +38,19 @@ def test_lost_drone_is_noticed(app):
     assert wait_until(app, lambda: not app.tello.session, timeout=10)
     assert "Link lost - reconnecting" in messages(app)
     assert not app.tello.blocked
+
+
+def test_flight_data_in_each_unit(app):
+    app.fake.state.update(h=150, tof=182, vgx=30, vgy=40, vgz=-10)  # 1.5 m up, 5 m/s, climbing 1 m/s
+    connect(app)
+    assert wait_until(app, lambda: app.tello.state.get("vgx") == 30)
+    expected = {
+        "metric": ["1.5 m", "1.82 m", "5.0 m/s", "+1.0 m/s"],
+        "metric_kmh": ["1.5 m", "18.0 km/h", "+1.0 m/s"],
+        "imperial": ["4.9 ft", "5.97 ft", "11.2 mph", "+3.3 ft/s"],
+    }
+    for units, values in expected.items():
+        app.settings["hud"]["units"] = units
+        text = screen_text(app)
+        for value in values:
+            assert value in text, (units, value)

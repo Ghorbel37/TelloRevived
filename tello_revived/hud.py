@@ -14,6 +14,12 @@ from tello_revived.settings import SPEED_NAMES
 
 MONO = "consolas,dejavusansmono,menlo,couriernew"  # first one installed wins
 BAR_H = 30  # height of the button guide at the bottom
+# HUD units: (factor from metres, name) for distances, then speeds and climb rate (from m/s)
+UNITS = {
+    "metric": (1, "m", 1, "m/s", 1, "m/s"),
+    "metric_kmh": (1, "m", 3.6, "km/h", 1, "m/s"),
+    "imperial": (3.28084, "ft", 2.23694, "mph", 3.28084, "ft/s"),
+}
 STALE_VIDEO = 1.0  # seconds without frames before the last picture is dropped
 
 
@@ -90,10 +96,13 @@ class HudDrawing:
                 self.draw_attitude(area.center, st)
             if hud["flight_data"]:
                 y = 50
-                h = st.get("h", 0) / 100
-                spd = math.hypot(st.get("vgx", 0), st.get("vgy", 0)) / 10
-                for label, value in (("ALT", f"{h:4.1f} m"), ("TOF", f"{st.get('tof', 0) / 100:4.2f} m"),
-                                     ("SPD", f"{spd:4.1f} m/s"), ("VS", f"{-st.get('vgz', 0) / 10:+4.1f} m/s")):
+                dist, dist_unit, speed, speed_unit, climb, climb_unit = UNITS[hud["units"]]
+                h = st.get("h", 0) / 100 * dist  # the drone reports cm, and dm/s for speeds
+                tof = st.get("tof", 0) / 100 * dist
+                spd = math.hypot(st.get("vgx", 0), st.get("vgy", 0)) / 10 * speed
+                vs = -st.get("vgz", 0) / 10 * climb
+                for label, value in (("ALT", f"{h:4.1f} {dist_unit}"), ("TOF", f"{tof:4.2f} {dist_unit}"),
+                                     ("SPD", f"{spd:4.1f} {speed_unit}"), ("VS", f"{vs:+4.1f} {climb_unit}")):
                     self.panel(pygame.Rect(8, y - 2, 160, 30), 110)
                     self.text(label, (14, y + 3), (160, 160, 160), self.font_small)
                     self.text(value, (160, y + 1), anchor="topright")

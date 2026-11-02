@@ -45,7 +45,8 @@ HINTS = {
             "sticks": "Shows your stick positions", "messages": "Short status messages",
             "hint_bar": "The buttons you can use right now", "video_fps": "Video frames per second, and the app's own delay (receive to screen)",
             "sound_alerts": "Beeps for low battery, auto-land, failed landing, refusals, firewall",
-            "vibration_alerts": "The same alerts, felt through the gamepad"},
+            "vibration_alerts": "The same alerts, felt through the gamepad",
+            "units": "For height and speed in the flight data panel"},
     "drone": {"model": "Hides settings your drone can't use"},
     "flight": {"move_stick": "This stick moves; the other climbs and turns",
                "speed_slow": "Top speed in slow mode", "speed_normal": "Top speed in normal mode",
@@ -105,7 +106,9 @@ class Menu:
                      ("messages", "Messages"), ("hint_bar", "Button guide (bottom bar)"),
                      ("sound_alerts", "Sound alerts"), ("vibration_alerts", "Vibration alerts (gamepad)"),
                      ("video_fps", "Video fps and app delay")]
-            return [Row("toggle", label, "hud", k) for k, label in items] + [reset("hud", "HUD")]
+            units = Row("choice", "Units", "hud", "units", [("metric", "Metric (m, m/s)"),
+                        ("metric_kmh", "Metric (m, km/h)"), ("imperial", "Imperial (ft, mph)")])
+            return [units] + [Row("toggle", label, "hud", k) for k, label in items] + [reset("hud", "HUD")]
         if name == "Flight":
             return [
                 Row("choice", "Drone model", "drone", "model", DRONE_MODELS),
