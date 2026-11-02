@@ -4,7 +4,7 @@ import threading
 import time
 
 LOW_BAT_TAKEOFF = 10  # the Tello refuses to take off at or below about this battery level
-HOT_TEMP = 85  # degrees C; the HUD shows the temperature in red above this
+HOT_TEMP = 85  # degrees C: shown in red, and a warning before takeoff (Tellos often fly hotter, so no block)
 LAND_STALL = 4.0  # seconds without descending before a landing attempt counts as failed
 
 
@@ -18,27 +18,35 @@ class FlightActions:
         self.landing = self.land_failed = False
         self.land_fails = 0
         self.takeoff_until = time.monotonic() + self.settings["flight"]["takeoff_pause"]
+        self.taking_off = True  # until the drone answers: its height can read 0 for a few seconds
         threading.Thread(target=self._do_takeoff, daemon=True).start()
 
     def _do_takeoff(self):
         # "ok" comes once it hovers; a refusal comes straight away and is just "error"
-        reply = self.tello.query("takeoff", 12.0)
+        try:
+            reply = self.tello.query("takeoff", 12.0)
+        finally:
+            self.taking_off = False
         if reply == "ok" or self.tello.flying:
             return
-        reason = self.takeoff_problem()
+        reason = self.takeoff_problem() or self.heat_warning()
         if not reason:
             reason = ("no reply from the drone" if not reply else
                       f"the drone said '{reply}' with no reason - put it on a flat surface, or restart it")
         self.tello.log(f"Take off refused: {reason}")
 
     def takeoff_problem(self):
-        """The likely reason the drone won't take off, from its battery and temperature."""
-        st = self.tello.state
-        bat, temp = st.get("bat", 100), st.get("temph", 0)
+        """Why the drone will refuse to take off, if we can tell: only a low battery is certain."""
+        bat = self.tello.state.get("bat", 100)
         if bat <= LOW_BAT_TAKEOFF:
             return f"battery {bat:.0f}% is too low - charge it"
+        return None
+
+    def heat_warning(self):
+        """A hot drone may refuse to take off, but often flies fine, so this only warns."""
+        temp = self.tello.state.get("temph", 0)
         if temp >= HOT_TEMP:
-            return f"drone too hot ({temp:.0f}°C) - let it cool down"
+            return f"drone is hot ({temp:.0f}°C) - it may refuse; let it cool if it does"
         return None
 
     def land(self):

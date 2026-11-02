@@ -53,6 +53,7 @@ class App(FlightActions, HudDrawing):
         self.flip_until = 0.0
         self.quit_after_land = False
         self.held_scans = set()
+        self.taking_off = False  # takeoff sent, no answer yet
         self.firewall_button = None  # where the HUD drew "Allow it now", for mouse clicks
         self.firewall_status = None  # what happened after pressing it
         self.last_input = "pad"  # which device the button guide shows

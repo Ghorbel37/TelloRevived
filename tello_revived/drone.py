@@ -53,7 +53,10 @@ class Tello:
 
     @property
     def flying(self):
-        return self.connected and self.state.get("h", 0) > 0
+        """In the air: a height above the takeoff point, or the downward sensor seeing the ground
+        more than 40 cm away (it reads about 10 cm on the ground; h can stay 0 just after takeoff)."""
+        st = self.state
+        return self.connected and (st.get("h", 0) > 0 or 40 < st.get("tof", 0) < 1000)
 
     def log(self, text):
         self.log_lines.append((time.monotonic(), text))

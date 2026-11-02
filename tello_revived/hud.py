@@ -170,7 +170,7 @@ class HudDrawing:
             bat = t.state.get("bat", 0)
             items.append(("!", "needs > 50% battery" if bat > 50 else f"battery {bat:.0f}% - too low to flip", red))
             mode = ("FLIP", amber)
-        elif t.flying:
+        elif t.flying or self.taking_off:
             items = []
             if self.landing or self.land_failed:
                 items.append((emergency, "EMERGENCY stop", red))
@@ -178,7 +178,8 @@ class HudDrawing:
                       (speed, f"Speed: {SPEED_NAMES[self.speed_idx]}", None),
                       *self.camera_items(b),
                       (b("flip"), "Hold: flips", None)] + help_items
-            mode = ("LANDING", amber) if self.landing else ("FLYING", (90, 220, 120))
+            mode = (("LANDING", amber) if self.landing else ("TAKING OFF", amber) if not t.flying
+                    else ("FLYING", (90, 220, 120)))
         elif t.connected:
             items = [(b("takeoff"), "Take off", None), *self.camera_items(b)] + help_items
             mode = ("READY", (120, 190, 255))
@@ -229,6 +230,9 @@ class HudDrawing:
         btn = pad_label(self.settings["pad"]["takeoff"]) if on_pad else key_label(self.settings["keys"]["takeoff"])
         if btn == "-":
             return
+        if self.taking_off:
+            self.text("Taking off...", (sw // 2, sh // 2 + 110), (120, 255, 160), self.font_big, "center")
+            return
         if problem := self.takeoff_problem():
             rect = self.text("Can't take off", (sw // 2, sh // 2 + 110), (240, 70, 60), self.font_big, "center")
             self.text(problem[0].upper() + problem[1:], (sw // 2, rect.bottom + 6), (235, 235, 235),
@@ -236,8 +240,12 @@ class HudDrawing:
             return
         rect = self.text(f"Press {btn} to take off", (sw // 2, sh // 2 + 110), (120, 255, 160),
                          self.font_big, "center")
-        self.text("Check there is space around and above the drone", (sw // 2, rect.bottom + 6),
-                  (170, 170, 170), self.font_small, "midtop")
+        if warning := self.heat_warning():
+            self.text(warning[0].upper() + warning[1:], (sw // 2, rect.bottom + 6), (240, 200, 60),
+                      self.font_small, "midtop")
+        else:
+            self.text("Check there is space around and above the drone", (sw // 2, rect.bottom + 6),
+                      (170, 170, 170), self.font_small, "midtop")
 
     def draw_firewall_help(self):
         """The drone answers commands but its telemetry and video don't get through."""

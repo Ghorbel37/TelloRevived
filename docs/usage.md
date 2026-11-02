@@ -37,7 +37,7 @@ It shows the gamepad's buttons after you touch the gamepad, and the keyboard's k
 | Fullscreen / quit | `F11` / `Esc` | |
 
 - Flips need more than 50% battery. If the drone refuses one, the app says why.
-- If a takeoff is refused, the app gives the likely reason (battery too low, drone too hot).
+- If a takeoff is refused, the app gives the likely reason (battery too low, drone too hot). A low battery is shown before you try; a hot drone only gets a warning, because Tellos often fly fine when hot.
 - Quitting while flying lands first. Press the quit key again to quit right away.
 
 ## Settings screen
