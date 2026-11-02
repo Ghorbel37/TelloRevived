@@ -13,7 +13,7 @@ from tello_revived.gamepad import Gamepad, shape
 from tello_revived.hud import MONO, HudDrawing
 from tello_revived.labels import key_label
 from tello_revived.menu import Menu
-from tello_revived import folder_picker
+from tello_revived import firewall, folder_picker
 from tello_revived.paths import ICON_PATH, MEDIA_DIR
 from tello_revived.settings import SPEED_NAMES, Settings
 from tello_revived.video import Video
@@ -53,6 +53,8 @@ class App(FlightActions, HudDrawing):
         self.flip_until = 0.0
         self.quit_after_land = False
         self.held_scans = set()
+        self.firewall_button = None  # where the HUD drew "Allow it now", for mouse clicks
+        self.firewall_status = None  # what happened after pressing it
         self.last_input = "pad"  # which device the button guide shows
         self.frame_surface = None  # the video frame on screen (already scaled to the window)
         self.shown_frame_id = -1
@@ -146,6 +148,25 @@ class App(FlightActions, HudDrawing):
         self.settings.save()
         self.tello.log(f"Photos and videos now go to {path}")
 
+    def allow_firewall(self):
+        """Ask the system (with its admin prompt) to let the drone's telemetry and video in."""
+        if not firewall.can_allow():
+            return self.tello.log("Can't change the firewall from here - see the steps on screen")
+        if self.firewall_status == "Waiting for your answer to the admin prompt...":
+            return
+        if self.fullscreen:
+            self.toggle_fullscreen()  # the prompt would open behind a fullscreen window
+        self.firewall_status = "Waiting for your answer to the admin prompt..."
+        threading.Thread(target=self._allow_firewall, daemon=True).start()
+
+    def _allow_firewall(self):
+        try:
+            ok = firewall.allow()
+        except OSError:
+            ok = False
+        self.firewall_status = ("Allowed - waiting for the drone's telemetry..." if ok
+                                else "Not changed (cancelled or failed) - you can try again")
+
     def toggle_fullscreen(self):
         self.fullscreen = not self.fullscreen
         if self.fullscreen:
@@ -164,6 +185,8 @@ class App(FlightActions, HudDrawing):
             return self.emergency()
         if self.menu.is_open:
             return self.menu.handle_pad(b)
+        if self.tello.blocked and b == "square":  # nothing to record while blocked anyway
+            return self.allow_firewall()
         if b in FLIP_DIRS and pad["flip"] in self.pad.held:
             return self.flip(FLIP_DIRS[b])
         actions = {"takeoff": self.takeoff, "land": self.land, "speed": self.cycle_speed,
@@ -181,6 +204,9 @@ class App(FlightActions, HudDrawing):
             return True
         if self.menu.is_open:
             self.menu.handle_key(ev)
+            return True
+        if self.tello.blocked and sc == pygame.KSCAN_F:
+            self.allow_firewall()
             return True
         if keys["flip"] in self.held_scans:
             for action, d in MOVE_FLIPS.items():
@@ -280,6 +306,9 @@ class App(FlightActions, HudDrawing):
                 elif ev.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEWHEEL):
                     if self.menu.is_open:
                         self.menu.handle_mouse(ev)
+                    elif (ev.type == pygame.MOUSEBUTTONDOWN and self.tello.blocked and self.firewall_button
+                          and self.firewall_button.collidepoint(ev.pos)):
+                        self.allow_firewall()
                 elif ev.type == pygame.WINDOWMINIMIZED:
                     minimized = True
                 elif ev.type in (pygame.WINDOWRESTORED, pygame.WINDOWMAXIMIZED, pygame.WINDOWSHOWN):

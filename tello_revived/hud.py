@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pygame
 
+from tello_revived import firewall
 from tello_revived.flight import HOT_TEMP
 from tello_revived.labels import key_label, pad_label
 from tello_revived.settings import SPEED_NAMES
@@ -181,6 +182,10 @@ class HudDrawing:
         elif t.connected:
             items = [(b("takeoff"), "Take off", None), *self.camera_items(b)] + help_items
             mode = ("READY", (120, 190, 255))
+        elif t.blocked:
+            allow = ("Square" if on_pad else "F") if firewall.can_allow() else None
+            items = [(allow, "Allow through firewall", None)] + help_items + [(k("quit"), "Quit", None)]
+            mode = ("BLOCKED", red)
         else:
             items = help_items + [(k("quit"), "Quit", None)]
             mode = ("OFFLINE", (150, 150, 150))
@@ -252,13 +257,24 @@ class HudDrawing:
             how = ["Allow incoming UDP on ports 8890 and 11111, for example:", "sudo ufw allow 8890,11111/udp"]
         lines = ["The drone answers, but your firewall blocks its telemetry and video.", "", *how, "",
                  "This message goes away by itself once it's allowed."]
-        box = pygame.Rect(0, 0, min(sw - 20, 680), 70 + 24 * len(lines))
+        button = firewall.can_allow()
+        box = pygame.Rect(0, 0, min(sw - 20, 680), 70 + 24 * len(lines) + (80 if button else 0))
         box.center = (sw // 2, sh // 2)
         self.panel(box, 210)
         pygame.draw.rect(self.screen, (240, 70, 60), box, 3)
         self.text("BLOCKED BY FIREWALL", (box.centerx, box.top + 12), (240, 70, 60), self.font_big, "midtop")
         for i, line in enumerate(lines):
             self.text(line, (box.centerx, box.top + 56 + 24 * i), font=self.font_small, anchor="midtop")
+        self.firewall_button = None
+        if button:
+            keys = "F or Square" if self.pad.name else "F"
+            label = self.font.render(f"Allow it now ({keys})", True, (15, 18, 24))
+            rect = label.get_rect(midtop=(box.centerx, box.bottom - 76)).inflate(28, 12)
+            pygame.draw.rect(self.screen, (120, 190, 255), rect, border_radius=6)
+            self.screen.blit(label, label.get_rect(center=rect.center))
+            self.firewall_button = rect
+            note = self.firewall_status or "Asks for administrator permission, then allows only the drone's ports"
+            self.text(note, (box.centerx, rect.bottom + 8), (170, 170, 170), self.font_small, "midtop")
 
     def draw_land_failed(self):
         sw, sh = self.screen.get_size()

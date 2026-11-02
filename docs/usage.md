@@ -93,4 +93,10 @@ All of these are on the **Video & Power** page:
 
 The drone sends its telemetry (port 8890) and video (port 11111) on its own, and a firewall blocks that unless the app is allowed. Replies to commands still get through, so the drone seems to connect but never shows data. When this happens, the app shows **BLOCKED BY FIREWALL**, with steps for your system and the exact program to allow. The message clears by itself once it's allowed.
 
+**Allow it now** (or **F**, or **Square** on the gamepad) does it for you after the system's administrator prompt:
+
+- **Windows:** removes this program's inbound *block* rules, which Windows creates when its firewall question is dismissed, and adds a rule that lets in only UDP ports 8890 and 11111.
+- **macOS:** adds the app to the built-in firewall's allowed list.
+- **Linux:** runs `ufw allow 8890,11111/udp` when `ufw` and `pkexec` are installed. Otherwise only the steps are shown.
+
 On Windows, the Tello's Wi-Fi usually counts as a Public network, so allow the app on **Public**, or on both Private and Public. When running from source, the program to allow is the installed Python, not the `.venv` one. The message shows its path.
