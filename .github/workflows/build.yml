@@ -32,6 +32,10 @@ jobs:
       - name: Install
         run: uv sync --locked --group build
 
+      - name: Tests (fake drone)
+        timeout-minutes: 10
+        run: uv run pytest -q
+
       # A minimal FFmpeg (tools/build_ffmpeg.sh) replaces the full one PyAV ships, which makes the
       # builds much smaller. It is cached per system until the version or the recipe changes.
       - name: FFmpeg version PyAV uses

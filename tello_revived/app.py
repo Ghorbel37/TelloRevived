@@ -318,23 +318,27 @@ class App(FlightActions, HudDrawing):
                     button = self.pad.handle(ev)
                     if button:
                         self.on_pad_button(button)
-            if self.quit_after_land and not self.landing:
-                self.quit_after_land = False
-                if self.tello.flying:
-                    self.tello.log("Quit cancelled - the drone is still flying")
-                else:
-                    running = False
-            self.check_battery()
-            if self.video.recording and not self.tello.want_video():
-                self.toggle_record()  # e.g. landed with video set to "only while flying"
-            self.read_sticks()
-            self.send_rc()
-            if not minimized:  # nothing to see: skip drawing to save power
-                area = self.draw_video()
-                self.draw_hud(area)
-                pygame.display.flip()
+            if not self.update(draw=not minimized):  # nothing to see when minimised: save power
+                running = False
             clock.tick(RC_HZ if minimized else self.settings["power"]["app_fps"])
         self.shutdown()
+
+    def update(self, draw=True):
+        """One frame after input: battery check, sticks, rc, drawing. False once it's time to quit."""
+        if self.quit_after_land and not self.landing:
+            self.quit_after_land = False
+            if not self.tello.flying:
+                return False
+            self.tello.log("Quit cancelled - the drone is still flying")
+        self.check_battery()
+        if self.video.recording and not self.tello.want_video():
+            self.toggle_record()  # e.g. landed with video set to "only while flying"
+        self.read_sticks()
+        self.send_rc()
+        if draw:
+            self.draw_hud(self.draw_video())
+            pygame.display.flip()
+        return True
 
     def shutdown(self):
         if self.tello.flying:  # forced quit mid-flight: last-ditch land

@@ -52,3 +52,13 @@ The screenshots in the README and these docs use a simulated camera image and te
 ```
 uv run python tools/make_screenshots.py
 ```
+
+## Tests
+
+```
+uv run pytest
+```
+
+The tests in `tests/` run the real app against a fake drone (`FakeDrone` in `tests/conftest.py`) on localhost. The fake answers commands, sends telemetry and streams a short test clip as video, and each test changes what it does: a hot drone, a height that stays at 0 after takeoff, a firewall that blocks telemetry, a refused flip, a landing that never happens. They take about 40 seconds, and the release workflow runs them on every system before building.
+
+When the real drone does something unexpected, add a test that makes the fake drone do the same.

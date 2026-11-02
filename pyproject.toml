@@ -18,7 +18,8 @@ Repository = "https://github.com/Ghorbel37/TelloRevived"
 tello-revived = "tello_revived.cli:main"
 
 [dependency-groups]
-dev = ["numpy"]  # tools/make_screenshots.py draws its fake camera image with it; uv installs this group by default
+# installed by default with uv: tests, and numpy for tools/make_screenshots.py's fake camera image
+dev = ["pytest", "numpy"]
 # uv sync --group build   (for tools/build.py)
 build = ["pyinstaller>=6.10"]
 
@@ -31,3 +32,6 @@ path = "tello_revived/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["tello_revived"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
