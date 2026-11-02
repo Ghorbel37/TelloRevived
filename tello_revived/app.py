@@ -185,6 +185,10 @@ class App(FlightActions, HudDrawing):
         else:
             self.update_state = f"Up to date (v{VERSION})"
 
+    def update_question_open(self):
+        """The first-run question is on screen. Never while flying, so it can't lock the controls in the air."""
+        return self.ask_about_updates and not self.tello.flying
+
     def answer_update_question(self, yes):
         """The first-run question: check for updates when the app opens?"""
         self.ask_about_updates = False
@@ -256,10 +260,12 @@ class App(FlightActions, HudDrawing):
         emergency = {pad["emergency_1"], pad["emergency_2"]} - {None}
         if b in emergency and emergency <= self.pad.held:
             return self.emergency()
+        if self.update_question_open():  # it must be answered: everything else waits
+            if b in ("cross", "circle"):
+                self.answer_update_question(b == "cross")
+            return
         if self.menu.is_open:
             return self.menu.handle_pad(b)
-        if self.ask_about_updates and not self.tello.flying and b in ("cross", "circle"):
-            return self.answer_update_question(b == "cross")
         if self.tello.blocked and b == "square":  # nothing to record while blocked anyway
             return self.allow_firewall()
         if self.drone_networks and not self.tello.connected and b == "square":
@@ -279,11 +285,12 @@ class App(FlightActions, HudDrawing):
         if sc == keys["emergency"] and not self.menu.capture:
             self.emergency()
             return True
+        if self.update_question_open():  # it must be answered: everything else waits
+            if sc in (pygame.KSCAN_Y, pygame.KSCAN_N):
+                self.answer_update_question(sc == pygame.KSCAN_Y)
+            return True
         if self.menu.is_open:
             self.menu.handle_key(ev)
-            return True
-        if self.ask_about_updates and not self.tello.flying and sc in (pygame.KSCAN_Y, pygame.KSCAN_N):
-            self.answer_update_question(sc == pygame.KSCAN_Y)
             return True
         if self.tello.blocked and sc == pygame.KSCAN_F:
             self.allow_firewall()
@@ -326,7 +333,8 @@ class App(FlightActions, HudDrawing):
         s = lambda v: shape(v, fl["deadzone"], fl["expo"])
         roll, pitch, throttle, yaw = s(lx), -s(ly), -s(ry), s(rx)
         # the arrow keys etc. drive the menu while it's open, so only the pad flies then
-        down = lambda action: not self.menu.is_open and keys[action] is not None and keys[action] in held
+        typing = self.menu.is_open or self.update_question_open()  # keys drive the menu / the question
+        down = lambda action: not typing and keys[action] is not None and keys[action] in held
         if not down("flip"):
             roll += down("right") - down("left")
             pitch += down("forward") - down("back")
@@ -391,8 +399,9 @@ class App(FlightActions, HudDrawing):
                         self.menu.handle_mouse(ev)
                     elif ev.type == pygame.MOUSEBUTTONDOWN:
                         clicked = [a for a, r in self.update_buttons.items() if r.collidepoint(ev.pos)]
-                        if self.ask_about_updates and clicked:
-                            self.answer_update_question(clicked[0] == "yes")
+                        if self.update_question_open():
+                            if clicked:
+                                self.answer_update_question(clicked[0] == "yes")
                         elif self.tello.blocked and self.firewall_button and self.firewall_button.collidepoint(ev.pos):
                             self.allow_firewall()
                         elif self.wifi_button and self.wifi_button.collidepoint(ev.pos):

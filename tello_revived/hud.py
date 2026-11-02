@@ -124,14 +124,14 @@ class HudDrawing:
         if self.land_failed and t.flying:
             self.draw_land_failed()
 
-        self.update_buttons = {}
-        if self.ask_about_updates and not t.flying and not self.menu.is_open:
-            self.draw_update_question()
-
         if self.menu.is_open:
             self.menu.draw()
         elif bar:
             self.draw_hint_bar()
+
+        self.update_buttons = {}
+        if self.update_question_open():  # on top of everything, until it's answered
+            self.draw_update_question()
 
     def input_device(self):
         """'pad' or 'keys': whichever was used last (the guide shows its buttons)."""
@@ -274,24 +274,27 @@ class HudDrawing:
         self.text(f"Press {self.help_keys()} for controls", (sw // 2, y), (160, 160, 160), self.font_small, "midtop")
 
     def draw_update_question(self):
-        """First run only, and never while flying: may the app check for updates when it opens?"""
-        sw = self.screen.get_width()
-        box = pygame.Rect(0, 0, min(sw - 20, 600), 150)
-        box.midtop = (sw // 2, 46)
-        self.panel(box, 220)
-        pygame.draw.rect(self.screen, (120, 190, 255), box, 2)
-        self.text("Check for updates when the app opens?", (box.centerx, box.top + 14), font=self.font, anchor="midtop")
-        self.text("It asks GitHub for the latest version; nothing else is sent.", (box.centerx, box.top + 44),
-                  (170, 170, 170), self.font_small, "midtop")
-        self.text("You can change this later in Settings > About.", (box.centerx, box.top + 64),
-                  (170, 170, 170), self.font_small, "midtop")
+        """First run: a full-screen question that has to be answered (never shown while flying)."""
+        sw, sh = self.screen.get_size()
+        self.screen.fill((12, 14, 18))  # a screen of its own: nothing behind it shows
+        cy = sh // 2
+        self.text("Check for updates when the app opens?", (sw // 2, cy - 90), (255, 255, 255), self.font_big, "center")
+        for i, line in enumerate(("Tello Revived can ask GitHub for the latest version each time it starts.",
+                                  "Nothing else is sent. You can change this later in Settings > About.")):
+            self.text(line, (sw // 2, cy - 40 + 24 * i), (190, 190, 190), self.font_small, "center")
         on_pad = self.input_device() == "pad"
-        for answer, label, key, pad, x in (("yes", "Yes", "Y", "Cross", -70), ("no", "No", "N", "Circle", 70)):
-            img = self.font.render(f"{label} ({pad if on_pad else key})", True, (15, 18, 24))
-            rect = img.get_rect(midtop=(box.centerx + x, box.top + 98)).inflate(24, 10)
-            pygame.draw.rect(self.screen, (120, 190, 255) if answer == "yes" else (200, 205, 215), rect, border_radius=6)
+        buttons = [("yes", self.font_big.render(f"Yes ({'Cross' if on_pad else 'Y'})", True, (15, 18, 24))),
+                   ("no", self.font_big.render(f"No ({'Circle' if on_pad else 'N'})", True, (15, 18, 24)))]
+        gap, pad = 40, (32, 16)
+        x = sw // 2 - (sum(img.get_width() + pad[0] for _, img in buttons) + gap) // 2
+        for answer, img in buttons:
+            rect = pygame.Rect(x, 0, img.get_width() + pad[0], img.get_height() + pad[1])
+            rect.centery = cy + 50
+            pygame.draw.rect(self.screen, (120, 190, 255) if answer == "yes" else (200, 205, 215), rect, border_radius=8)
             self.screen.blit(img, img.get_rect(center=rect.center))
             self.update_buttons[answer] = rect
+            x = rect.right + gap
+        self.text("Choose one to continue", (sw // 2, cy + 110), (130, 130, 130), self.font_small, "center")
 
     def draw_firewall_help(self):
         """The drone answers commands but its telemetry and video don't get through."""

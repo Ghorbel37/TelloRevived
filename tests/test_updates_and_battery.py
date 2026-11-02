@@ -120,3 +120,30 @@ def test_top_bar_shows_minutes_left_while_flying(app, monkeypatch):
     minutes = app.flight_minutes_left()
     assert minutes is not None
     assert f"BAT 77% {battery.describe(minutes)}" in screen_text(app)
+
+
+def key(app, scancode):
+    return app.on_key(pygame.event.Event(pygame.KEYDOWN, key=0, scancode=scancode, mod=0, unicode=""))
+
+
+def test_first_run_question_blocks_everything_until_answered(app, monkeypatch):
+    monkeypatch.setattr(updates, "latest_release", lambda: None)
+    connect(app)
+    app.ask_about_updates = True
+    key(app, pygame.KSCAN_T)  # take off
+    app.on_pad_button("triangle")
+    key(app, pygame.KSCAN_H)  # help
+    app.on_pad_button("start")
+    assert key(app, pygame.KSCAN_ESCAPE) is True  # quit is ignored too (the window's close button still works)
+    wait_until(app, lambda: False, timeout=0.5)
+    assert "takeoff" not in app.fake.received
+    assert not app.menu.is_open
+    assert app.ask_about_updates
+
+    key(app, pygame.KSCAN_BACKSPACE)  # the emergency stop always gets through
+    assert wait_until(app, lambda: "emergency" in app.fake.received)
+
+    key(app, pygame.KSCAN_N)
+    assert not app.ask_about_updates
+    key(app, pygame.KSCAN_H)
+    assert app.menu.is_open  # everything works again
