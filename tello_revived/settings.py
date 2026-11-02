@@ -43,6 +43,7 @@ DEFAULTS = {
         "speed_slow": 30, "speed_normal": 60, "speed_fast": 100,
         "deadzone": 0.08, "expo": 0.35, "precision": 0.3,
         "retry_landing": False, "land_attempts": 3, "takeoff_pause": 0, "land_on_quit": True,
+        "rejoin_wifi": True,  # go back to the drone's Wi-Fi if the computer drops it mid-session
     },
     "power": {
         "video": "flying",          # flying (only while airborne) / on / off - the idle drone runs hot

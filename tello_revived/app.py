@@ -23,6 +23,7 @@ from tello_revived.settings import SPEED_NAMES, Settings
 from tello_revived.video import Video
 
 RC_HZ = 20
+REJOIN_WITHIN = 120.0  # seconds after losing the drone during which its Wi-Fi is rejoined automatically
 WIFI_SCAN_EVERY = 5.0  # seconds between looks for the drone's network, while it isn't connected
 
 FLIP_DIRS = {"up": "f", "down": "b", "left": "l", "right": "r"}
@@ -74,6 +75,9 @@ class App(FlightActions, HudDrawing):
         self.current_wifi = None  # the network this computer is on
         self.wifi_button = None
         self.wifi_status = None
+        self.drone_wifi = None  # the network the drone answered on, to rejoin if the computer drops it
+        self.drone_seen = 0.0  # when the drone was last connected
+        self.last_rejoin = 0.0
         if wifi.available():
             threading.Thread(target=self._watch_wifi, daemon=True).start()
         self.new_release = None  # (tag, url) of a newer release, once found
@@ -254,10 +258,29 @@ class App(FlightActions, HudDrawing):
         while self.tello.running:
             if self.tello.connected or self.tello.blocked:
                 self.drone_networks = []
+                if self.tello.connected:
+                    self.drone_seen = time.monotonic()
+                    if not self.drone_wifi and wifi.DRONE_NETWORK.match(current := wifi.current_network() or ""):
+                        self.drone_wifi = current
             else:
                 self.current_wifi = wifi.current_network()
-                self.drone_networks = [n for n in wifi.drone_networks() if n != self.current_wifi]
+                seen = wifi.drone_networks()
+                self.drone_networks = [n for n in seen if n != self.current_wifi]
+                self._rejoin(seen)
             time.sleep(WIFI_SCAN_EVERY)
+
+    def _rejoin(self, seen):
+        """The drone was just lost and the computer moved to another network: go back to the drone's.
+
+        Only shortly after losing it, so switching to another network after flying isn't undone.
+        """
+        now = time.monotonic()
+        lost_recently = self.drone_seen and now - self.drone_seen < REJOIN_WITHIN
+        if (self.settings["flight"]["rejoin_wifi"] and lost_recently and self.drone_wifi in seen
+                and self.current_wifi != self.drone_wifi and now - self.last_rejoin > 10):
+            self.last_rejoin = now
+            self.tello.log(f"Wi-Fi moved away from {self.drone_wifi} - rejoining it")
+            self._connect_wifi(self.drone_wifi)
 
     def connect_wifi(self):
         """Join the first drone network found (the system's tools do it; takes a few seconds)."""
