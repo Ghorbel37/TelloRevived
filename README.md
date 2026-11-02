@@ -38,6 +38,7 @@ Nothing needs installing. A few notes the first time:
 - **Gamepad and keyboard** at the same time. Keys follow their position, so WASD becomes ZQSD on AZERTY keyboards.
 - **Everything rebindable**, including the sticks, with speeds, stick feel and landing behaviour adjustable.
 - **Minutes of flight left** in the top bar, measured from how fast your battery is dropping.
+- **Flight logs and graphs:** see each flight's height, battery and speed, and how your battery is ageing.
 - **Landing help** and **battery saving**: video only while flying, and auto-land at a battery level you choose.
 
 ## Controls

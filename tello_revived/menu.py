@@ -8,12 +8,13 @@ import av
 import pygame
 
 from tello_revived import REPO_URL, VERSION, desktop
+from tello_revived import flights as flights_module
 from tello_revived.labels import key_label, pad_label
 from tello_revived.paths import MEDIA_DIR
 from tello_revived.settings import DRONE_MODELS, KEY_ACTIONS, PAD_ACTIONS, help_rows, stream_settings_supported
 
 STREAM_KEYS = ("resolution", "stream_fps", "bitrate")  # SDK 3.0 only
-TABS = ["Help", "Keyboard", "Gamepad", "HUD", "Flight", "Video & Power", "About"]
+TABS = ["Help", "Keyboard", "Gamepad", "HUD", "Flight", "Video & Power", "Flights", "About"]
 
 ACCENT = (120, 190, 255)
 YELLOW = (240, 200, 60)
@@ -82,6 +83,7 @@ class Menu:
         self.sel = 0
         self.scroll = 0
         self.capture = None  # ("key" | "pad", action) while waiting for a new binding
+        self.graph = None  # the Flight shown as a graph on the Flights page
         self.device = "keyboard"
         self.tab_rects = []
         self.row_rects = []
@@ -96,6 +98,8 @@ class Menu:
             return [Row("help", r) for r in help_rows(self.settings)]
         if name == "About":
             return self.about_rows()
+        if name == "Flights":
+            return self.flight_rows()
         if name == "Keyboard":
             return [Row("key", label, "keys", a) for a, label in KEY_ACTIONS] + [reset("keys", "keyboard")]
         if name == "Gamepad":
@@ -149,6 +153,36 @@ class Menu:
             reset("power", "video & power"),
         ]
 
+    def flight_rows(self):
+        """Past flights from the flight logs, newest first, and the battery trend across them."""
+        folder = self.app.media_dir()
+        flights = self.app.flights.list(folder)
+        if not flights:
+            return [Row("info", "No flight logs yet."),
+                    Row("info", "Turn on Video & Power > Save flight logs, and each flight appears here."),
+                    Row("info", f"(looking in {folder})")]
+        rows = [Row("text", f"{len(flights)} flight{'s' * (len(flights) > 1)}")]
+        trend = flights_module.battery_trend(flights)
+        if trend:
+            recent, earlier = trend
+            line = f"Battery use: {recent:.1f}% a minute lately"
+            if earlier:
+                line += f", {earlier:.1f}% in earlier flights"
+            rows.append(Row("info", line))
+            if earlier and recent > earlier * 1.15:
+                rows.append(Row("info", "Recent flights drain the battery faster: it may be ageing"))
+        dist, dist_unit = self.app.distance_units()
+        for f in flights[:40]:
+            minutes, seconds = divmod(int(f.duration), 60)
+            label = (f"{f.started:%Y-%m-%d %H:%M}   {minutes}:{seconds:02d}   "
+                     f"max {f.max_height / 100 * dist:.1f} {dist_unit}   battery {f.battery_start}% > {f.battery_end}%")
+            rows.append(Row("button", label, fn=lambda f=f: self.show_graph(f),
+                            hint="Shows height, battery and speed over this flight"))
+        return rows
+
+    def show_graph(self, flight):
+        self.graph = flight
+
     def menu_entry_rows(self):
         """Linux only: one button that adds the app to the applications menu, or removes it."""
         if not desktop.supported():
@@ -198,6 +232,7 @@ class Menu:
     def close(self):
         self.is_open = False
         self.capture = None
+        self.graph = None
 
     def toggle(self, tab):
         if self.is_open:
@@ -281,6 +316,12 @@ class Menu:
                 self.bind(ev.scancode)
             return
         keys = self.settings["keys"]
+        if self.graph:  # back to the list (Tab still changes page)
+            if ev.key == pygame.K_TAB:
+                self.switch_tab(-1 if ev.mod & pygame.KMOD_SHIFT else 1)
+            elif ev.key in (pygame.K_ESCAPE, pygame.K_BACKSPACE, pygame.K_RETURN, pygame.K_SPACE):
+                self.graph = None
+            return
         rows = self.rows()
         row = rows[self.sel] if self.sel < len(rows) else None
         k = ev.key
@@ -306,6 +347,12 @@ class Menu:
             if self.capture[0] == "pad":
                 self.bind(b)
             return
+        if self.graph:
+            if b in ("l1", "r1"):
+                self.switch_tab(-1 if b == "l1" else 1)
+            elif b in ("circle", "cross"):
+                self.graph = None
+            return
         rows = self.rows()
         row = rows[self.sel] if self.sel < len(rows) else None
         if b in ("circle",) or b == self.settings["pad"]["menu"]:
@@ -329,6 +376,9 @@ class Menu:
         if ev.type != pygame.MOUSEBUTTONDOWN or ev.button not in (1, 3):
             return
         self.capture = None
+        if self.graph and not any(r.collidepoint(ev.pos) for r in self.tab_rects):
+            self.graph = None  # a click goes back to the list
+            return
         for i, rect in enumerate(self.tab_rects):
             if rect.collidepoint(ev.pos):
                 self.switch_tab(i - self.tab)
@@ -343,6 +393,7 @@ class Menu:
                 return
 
     def switch_tab(self, delta):
+        self.graph = None
         self.tab = (self.tab + delta) % len(TABS)
         self.sel = self.scroll = 0
         self._fix_selection(1)
@@ -414,6 +465,12 @@ class Menu:
             app.text(f"Tello Revived v{VERSION}", (box.right - 16, box.top + 26), DIM, app.font_small, "midright")
         pygame.draw.line(screen, (70, 80, 100), (box.left, box.top + 50), (box.right, box.top + 50))
 
+        if self.graph:
+            self.draw_graph(pygame.Rect(box.left + 20, box.top + 62, box.width - 40, box.height - 62 - 48))
+            pygame.draw.line(screen, (70, 80, 100), (box.left, box.bottom - 36), (box.right, box.bottom - 36))
+            app.text(self.footer(), (box.centerx, box.bottom - 27), DIM, app.font_small, "midtop")
+            return
+
         top, bottom = box.top + 62, box.bottom - 44 - HINT_H
         rows = self.rows()
         visible = max(1, (bottom - top) // ROW_H)
@@ -467,7 +524,49 @@ class Menu:
         pygame.draw.line(screen, (70, 80, 100), (box.left, box.bottom - 36), (box.right, box.bottom - 36))
         app.text(self.footer(), (box.centerx, box.bottom - 27), DIM, app.font_small, "midtop")
 
+    def draw_graph(self, area):
+        """Height, battery and speed over one flight, as three stacked line charts."""
+        app, f = self.app, self.graph
+        app.screen.fill((16, 18, 24), area.inflate(12, 8))  # solid: nothing behind shows through the charts
+        minutes, seconds = divmod(int(f.duration), 60)
+        app.text(f"Flight of {f.started:%Y-%m-%d %H:%M}   {minutes}:{seconds:02d}   "
+                 f"battery {f.battery_start}% > {f.battery_end}%", (area.left, area.top), font=app.font)
+        dist, dist_unit = app.distance_units()
+        speed, speed_unit = app.speed_units()
+        charts = [(f"Height ({dist_unit})", [h / 100 * dist for h in f.heights], ACCENT),
+                  ("Battery (%)", f.batteries, GREEN),
+                  (f"Speed ({speed_unit})", [v / 10 * speed for v in f.speeds], YELLOW)]
+        top, gap = area.top + 34, 14
+        height = (area.bottom - top - gap * (len(charts) - 1)) // len(charts)
+        for i, (title, values, colour) in enumerate(charts):
+            chart = pygame.Rect(area.left + 60, top + i * (height + gap), area.width - 60, height)
+            self.draw_chart(chart, title, f.times, values, colour, last=i == len(charts) - 1)
+
+    def draw_chart(self, rect, title, times, values, colour, last):
+        app, screen = self.app, self.app.screen
+        pygame.draw.rect(screen, (40, 46, 60), rect, 1)
+        app.text(title, (rect.left + 6, rect.top + 4), DIM, app.font_small)
+        if len(values) < 2 or times[-1] <= times[0]:
+            return
+        low, high = min(values), max(values)
+        if high - low < 1e-6:
+            low, high = low - 1, high + 1
+        span = times[-1] - times[0]
+        inner = rect.inflate(-8, -24).move(0, 8)
+        points = [(inner.left + (t - times[0]) / span * inner.width,
+                   inner.bottom - (v - low) / (high - low) * inner.height) for t, v in zip(times, values)]
+        pygame.draw.lines(screen, colour, False, points, 2)
+        app.text(f"{high:.1f}", (rect.left - 6, inner.top), DIM, app.font_small, "topright")
+        app.text(f"{low:.1f}", (rect.left - 6, inner.bottom), DIM, app.font_small, "bottomright")
+        if last:  # time axis under the bottom chart
+            app.text("0:00", (rect.left, rect.bottom + 2), DIM, app.font_small, "topleft")
+            m, s = divmod(int(span), 60)
+            app.text(f"{m}:{s:02d}", (rect.right, rect.bottom + 2), DIM, app.font_small, "topright")
+
     def footer(self):
+        if self.graph:
+            return {"gamepad": "Circle: back to the list   L1 / R1: page",
+                    "mouse": "Click: back to the list"}.get(self.device, "Esc: back to the list   Tab: page")
         if self.capture:
             return "Esc: cancel" if self.capture[0] == "pad" else "Press the new key   Esc: cancel"
         if self.device == "gamepad":

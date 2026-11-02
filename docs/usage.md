@@ -145,6 +145,8 @@ Turn on **Video & Power → Save flight logs** (off by default), and each flight
 
 The logs open in any spreadsheet. If the drone does something unexpected, the log of that flight shows exactly what it reported.
 
+The **Flights** page of the settings screen lists your logged flights, newest first, with each one's date, duration, highest point and battery used. Pick one to see its height, battery and speed as graphs over the flight. At the top, it compares how fast recent flights used the battery with earlier ones, and says so when recent flights drain it noticeably faster, which is a sign the battery is ageing.
+
 ## Firewall
 
 The drone sends its telemetry (port 8890) and video (port 11111) on its own, and a firewall blocks that unless the app is allowed. Replies to commands still get through, so the drone seems to connect but never shows data. When this happens, the app shows **BLOCKED BY FIREWALL**, with steps for your system and the exact program to allow. The message clears by itself once it's allowed.

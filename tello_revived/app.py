@@ -10,9 +10,10 @@ import pygame
 from tello_revived.battery import FlightTime
 from tello_revived.drone import Tello
 from tello_revived.flightlog import FlightLog
+from tello_revived.flights import Flights
 from tello_revived.flight import FlightActions
 from tello_revived.gamepad import Gamepad, shape
-from tello_revived.hud import MONO, HudDrawing
+from tello_revived.hud import MONO, UNITS, HudDrawing
 from tello_revived.labels import key_label
 from tello_revived.menu import Menu
 from tello_revived.sounds import Sounds
@@ -59,6 +60,7 @@ class App(FlightActions, HudDrawing):
         self.held_scans = set()
         self.taking_off = False  # takeoff sent, no answer yet
         self.flight_log = FlightLog()
+        self.flights = Flights()  # past flights, for the Flights page
         self.flight_time = FlightTime()
         self.camera_down = False  # EDU / RoboMaster TT: streaming the downward camera
         self.app_delay = None  # seconds from a video packet arriving to its frame on screen
@@ -191,6 +193,14 @@ class App(FlightActions, HudDrawing):
             self.tello.log("Camera: down" if down else "Camera: front")
         else:
             self.tello.log(f"The drone didn't switch cameras ({reply or 'no reply'}) - its firmware may be too old")
+
+    def distance_units(self):
+        """(factor from metres, name) for heights, from HUD > Units."""
+        return UNITS[self.settings["hud"]["units"]][0:2]
+
+    def speed_units(self):
+        """(factor from m/s, name) for speeds, from HUD > Units."""
+        return UNITS[self.settings["hud"]["units"]][2:4]
 
     def alert(self, name):
         """warning / alarm / error: a tone and a vibration, for whichever is switched on."""
