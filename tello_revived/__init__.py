@@ -7,5 +7,5 @@ os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")  # before any module im
 os.environ.setdefault("SDL_VIDEO_X11_WMCLASS", "tello-revived")
 os.environ.setdefault("SDL_VIDEO_WAYLAND_WMCLASS", "tello-revived")
 
-VERSION = "0.9"
+VERSION = "0.9.1"
 REPO_URL = "https://github.com/Ghorbel37/TelloRevived"
