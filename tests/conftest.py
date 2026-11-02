@@ -132,6 +132,7 @@ def app(tmp_path, monkeypatch):
     monkeypatch.setattr(settings.Settings.__init__, "__defaults__", (tmp_path / "config.json",))
     monkeypatch.setattr(app_module, "MEDIA_DIR", tmp_path / "media")
     # never look at or change this computer's real Wi-Fi; tests that need networks replace these
+    monkeypatch.setattr(wifi, "available", lambda: True)  # even where nmcli etc. aren't installed (CI)
     monkeypatch.setattr(wifi, "current_network", lambda: None)
     monkeypatch.setattr(wifi, "drone_networks", lambda: [])
     monkeypatch.setattr(wifi, "connect", lambda ssid: "tests don't connect")

@@ -4,7 +4,7 @@ import av
 import pygame
 import pytest
 
-from conftest import connect, messages, run, wait_until
+from conftest import connect, messages, wait_until
 
 
 @pytest.fixture
@@ -36,7 +36,8 @@ def test_photo_is_saved_at_full_size(flying_with_video, tmp_path):
 def test_recording_is_a_playable_mp4_and_stops_at_landing(flying_with_video, tmp_path):
     app = flying_with_video
     app.toggle_record()
-    run(app, 2)
+    start = app.video.frame_id
+    assert wait_until(app, lambda: app.video.frame_id - start >= 30, timeout=15)  # slow machines need longer
     app.fake.state.update(h=0, tof=10)  # landed: video stops, so does the recording
     assert wait_until(app, lambda: not app.video.recording)
     assert wait_until(app, lambda: any(m.startswith("Saved video_") for m in messages(app)))
