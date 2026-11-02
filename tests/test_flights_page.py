@@ -83,3 +83,36 @@ def test_empty_flights_page_says_how_to_get_logs(app):
     labels = [r.label for r in app.menu.rows()]
     assert labels[0] == "No flight logs yet."
     assert "Save flight logs" in labels[1]
+
+
+def press(app, key):
+    app.menu.handle_key(pygame.event.Event(pygame.KEYDOWN, key=key, scancode=0, mod=0, unicode=""))
+
+
+def test_deleting_a_flight_log_takes_two_presses(app, tmp_path):
+    media = tmp_path / "media"
+    old = write_log(media, "20261001_090000", 2, 80, 66)
+    new = write_log(media, "20261102_101500", 3, 90, 70)
+    app.menu.open("Flights")
+    app.menu.sel = next(i for i, r in enumerate(app.menu.rows()) if getattr(r, "flight", None))  # newest
+    press(app, pygame.K_DELETE)
+    assert new.exists()  # first press only asks
+    assert "Press Del again" in app.menu.rows()[app.menu.sel].hint
+    press(app, pygame.K_DOWN)  # anything else cancels
+    press(app, pygame.K_UP)
+    press(app, pygame.K_DELETE)
+    press(app, pygame.K_DELETE)
+    assert not new.exists() and old.exists()
+    assert "Deleted flight_20261102_101500.csv" in [m for _, m in app.tello.log_lines]
+    assert [r.label for r in app.menu.rows()][0] == "1 flight"
+
+
+def test_deleting_from_the_graph_with_the_gamepad(app, tmp_path):
+    log = write_log(tmp_path / "media", "20261102_101500", 3, 90, 70)
+    app.menu.open("Flights")
+    next(r for r in app.menu.rows() if getattr(r, "flight", None)).fn()
+    app.menu.handle_pad("square")
+    assert app.menu.footer() == "Press Square again to delete this flight log"
+    app.menu.handle_pad("square")
+    assert not log.exists() and app.menu.graph is None
+    assert app.menu.rows()[0].label == "No flight logs yet."

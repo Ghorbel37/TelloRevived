@@ -85,6 +85,7 @@ class Menu:
         self.scroll = 0
         self.capture = None  # ("key" | "pad", action) while waiting for a new binding
         self.graph = None  # the Flight shown as a graph on the Flights page
+        self.pending_delete = None  # a flight log waiting for the second Del / Square
         self.device = "keyboard"
         self.tab_rects = []
         self.row_rects = []
@@ -178,12 +179,41 @@ class Menu:
             minutes, seconds = divmod(int(f.duration), 60)
             label = (f"{f.started:%Y-%m-%d %H:%M}   {minutes}:{seconds:02d}   "
                      f"max {f.max_height / 100 * dist:.1f} {dist_unit}   battery {f.battery_start}% > {f.battery_end}%")
-            rows.append(Row("button", label, fn=lambda f=f: self.show_graph(f),
-                            hint="Shows height, battery and speed over this flight"))
+            row = Row("button", label, fn=lambda f=f: self.show_graph(f),
+                      hint=self.delete_hint(f) or "Shows height, battery and speed over this flight")
+            row.flight = f
+            rows.append(row)
         return rows
 
     def show_graph(self, flight):
         self.graph = flight
+
+    def delete_hint(self, flight):
+        if self.pending_delete == flight.path:
+            return f"Press {'Square' if self.device == 'gamepad' else 'Del'} again to delete this flight log"
+        return None
+
+    def selected_flight(self):
+        """The flight Del / Square applies to: the one shown, or the one highlighted in the list."""
+        if self.graph:
+            return self.graph
+        rows = self.rows()
+        return getattr(rows[self.sel], "flight", None) if self.sel < len(rows) else None
+
+    def delete_flight(self, flight):
+        """First press asks, the second deletes the log (it can't be undone)."""
+        if self.pending_delete != flight.path:
+            self.pending_delete = flight.path
+            return
+        self.pending_delete = None
+        try:
+            flight.path.unlink()
+        except OSError as e:
+            return self.app.tello.log(f"Couldn't delete {flight.path.name}: {e.strerror or e}")
+        self.app.flights.cache.pop(flight.path, None)
+        self.graph = None
+        self.app.tello.log(f"Deleted {flight.path.name}")
+        self._fix_selection(-1)
 
     def menu_entry_rows(self):
         """Linux only: one button that adds the app to the applications menu, or removes it."""
@@ -318,6 +348,11 @@ class Menu:
                 self.bind(ev.scancode)
             return
         keys = self.settings["keys"]
+        if TABS[self.tab] == "Flights" and ev.key == pygame.K_DELETE:
+            if flight := self.selected_flight():
+                self.delete_flight(flight)
+            return
+        self.pending_delete = None  # any other key cancels a delete
         if self.graph:  # back to the list (Tab still changes page)
             if ev.key == pygame.K_TAB:
                 self.switch_tab(-1 if ev.mod & pygame.KMOD_SHIFT else 1)
@@ -349,6 +384,11 @@ class Menu:
             if self.capture[0] == "pad":
                 self.bind(b)
             return
+        if TABS[self.tab] == "Flights" and b == "square":
+            if flight := self.selected_flight():
+                self.delete_flight(flight)
+            return
+        self.pending_delete = None  # any other button cancels a delete
         if self.graph:
             if b in ("l1", "r1"):
                 self.switch_tab(-1 if b == "l1" else 1)
@@ -567,8 +607,11 @@ class Menu:
 
     def footer(self):
         if self.graph:
-            return {"gamepad": "Circle: back to the list   L1 / R1: page",
-                    "mouse": "Click: back to the list"}.get(self.device, "Esc: back to the list   Tab: page")
+            if self.pending_delete == self.graph.path:
+                key = "Square" if self.device == "gamepad" else "Del"
+                return f"Press {key} again to delete this flight log"
+            return {"gamepad": "Circle: back to the list   Square: delete   L1 / R1: page",
+                    "mouse": "Click: back to the list"}.get(self.device, "Esc: back to the list   Del: delete   Tab: page")
         if self.capture:
             return "Esc: cancel" if self.capture[0] == "pad" else "Press the new key   Esc: cancel"
         if self.device == "gamepad":

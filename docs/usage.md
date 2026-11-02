@@ -147,7 +147,7 @@ Turn on **Video & Power → Save flight logs** (off by default), and each flight
 
 The logs open in any spreadsheet. If the drone does something unexpected, the log of that flight shows exactly what it reported.
 
-The **Flights** page of the settings screen lists your logged flights, newest first, with each one's date, duration, highest point and battery used. Pick one to see its height, battery and speed as graphs over the flight. At the top, it compares how fast recent flights used the battery with earlier ones, and says so when recent flights drain it noticeably faster, which is a sign the battery is ageing.
+The **Flights** page of the settings screen lists your logged flights, newest first, with each one's date, duration, highest point and battery used. Pick one to see its height, battery and speed as graphs over the flight. To delete a flight's log, press **Del** (or **Square** on the gamepad) on it in the list or its graph, then press it again to confirm. Any other key cancels. At the top, it compares how fast recent flights used the battery with earlier ones, and says so when recent flights drain it noticeably faster, which is a sign the battery is ageing.
 
 ## Firewall
 
