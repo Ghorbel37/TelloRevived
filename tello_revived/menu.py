@@ -43,7 +43,7 @@ HINTS = {
     "hud": {"top_bar": "Battery, Wi-Fi, flight time, temperature", "flight_data": "Altitude, height, speed, climb rate",
             "heading": "Angle turned since power-on (no compass)", "attitude": "Shows the drone's tilt",
             "sticks": "Shows your stick positions", "messages": "Short status messages",
-            "hint_bar": "The buttons you can use right now", "video_fps": "Video frames received per second",
+            "hint_bar": "The buttons you can use right now", "video_fps": "Video frames per second, and the app's own delay (receive to screen)",
             "sound_alerts": "Beeps for low battery, auto-land, failed landing, refusals, firewall",
             "vibration_alerts": "The same alerts, felt through the gamepad"},
     "drone": {"model": "Hides settings your drone can't use"},
@@ -104,7 +104,7 @@ class Menu:
                      ("heading", "Heading"), ("attitude", "Horizon line"), ("sticks", "Stick boxes"),
                      ("messages", "Messages"), ("hint_bar", "Button guide (bottom bar)"),
                      ("sound_alerts", "Sound alerts"), ("vibration_alerts", "Vibration alerts (gamepad)"),
-                     ("video_fps", "Video fps counter")]
+                     ("video_fps", "Video fps and app delay")]
             return [Row("toggle", label, "hud", k) for k, label in items] + [reset("hud", "HUD")]
         if name == "Flight":
             return [

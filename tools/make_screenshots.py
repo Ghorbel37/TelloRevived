@@ -50,6 +50,7 @@ app = App()
 app.media_dir = lambda: Path("media")  # don't show this computer's folders
 frame = landscape()
 app.video.frame = ((960, 720), 960 * 3, frame.tobytes()); app.video.frame_id = 1
+app.video.frame_received = time.monotonic() - 0.04  # shown as "app delay 40 ms"
 app.video.native_size = (960, 720)
 app.video.fps = 30.0
 app.tello.wifi = 82

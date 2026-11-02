@@ -21,6 +21,7 @@ class Video:
         self.native_size = None  # the stream's own size
         self.display_size = None  # set by the HUD: the size the window shows the video at
         self.frame_id = 0
+        self.frame_received = 0.0  # when the packet behind the latest frame arrived (for the app delay)
         self.frame_time = 0.0
         self.fps = 0.0
         self.rec_file = None
@@ -44,6 +45,7 @@ class Video:
                 stream.codec_context.thread_count = 1
                 frame_times = deque(maxlen=30)
                 for packet in container.demux(stream):
+                    received = time.monotonic()
                     if not self.running:
                         break
                     with self.lock:
@@ -65,6 +67,7 @@ class Video:
                             self.fps = (len(frame_times) - 1) / (frame_times[-1] - frame_times[0])
                         with self.lock:
                             self.frame = (size, plane.line_size, rgb)
+                            self.frame_received = received
                             self.raw_frame = f
                             self.native_size = (f.width, f.height)
                             self.frame_id += 1

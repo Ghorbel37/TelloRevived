@@ -4,7 +4,7 @@ import av
 import pygame
 import pytest
 
-from conftest import connect, messages, wait_until
+from conftest import connect, messages, screen_text, wait_until
 
 
 @pytest.fixture
@@ -65,3 +65,9 @@ def test_media_folder_can_be_changed_and_reset(flying_with_video, tmp_path):
     app.set_media_dir("")
     assert app.media_dir() == tmp_path / "media"
     assert app.settings["files"]["media_dir"] == ""
+
+
+def test_app_delay_is_measured_and_shown(flying_with_video):
+    app = flying_with_video
+    assert app.app_delay is not None and 0 <= app.app_delay < 1.0  # receive to screen, on this machine
+    assert "app delay" in screen_text(app)

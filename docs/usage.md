@@ -2,6 +2,7 @@
 
 - [Button guide](#button-guide)
 - [Controls in detail](#controls-in-detail)
+- [Video delay](#video-delay)
 - [Settings screen](#settings-screen)
 - [Landing](#landing)
 - [Battery and heat](#battery-and-heat)
@@ -44,6 +45,10 @@ It shows the gamepad's buttons after you touch the gamepad, and the keyboard's k
 - If a takeoff is refused, the app gives the likely reason (battery too low, drone too hot). A low battery is shown before you try; a hot drone only gets a warning, because Tellos often fly fine when hot.
 - Quitting while flying lands first. Press the quit key again to quit right away.
 - The Tello EDU and RoboMaster TT can stream their downward camera instead (black and white, lower resolution). Set the model in **Flight → Drone model** for the switch to appear. The command isn't in the official SDK guides; it works with recent firmware, and the app says so if the drone refuses.
+
+## Video delay
+
+The top right corner shows the video frame rate and the **app delay**: the time from a video packet arriving over Wi-Fi to that frame being on screen, typically tens of milliseconds. The drone's own delay (encoding the picture and sending it over Wi-Fi) comes on top of that. It can't be measured from the computer, because the drone doesn't timestamp its frames. **HUD → Video fps and app delay** hides it.
 
 ## Settings screen
 

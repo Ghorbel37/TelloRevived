@@ -45,6 +45,9 @@ class HudDrawing:
             size, pitch, data = frame
             self.frame_surface = pygame.image.frombuffer(data, size, "RGB", pitch)
             self.shown_frame_id = fid
+            # the app's part of the video delay: packet received -> on screen (smoothed)
+            delay = time.monotonic() - self.video.frame_received
+            self.app_delay = delay if self.app_delay is None else 0.9 * self.app_delay + 0.1 * delay
         self.screen.fill((12, 14, 18))
         if self.frame_surface and (not self.tello.want_video()
                                    or time.monotonic() - self.video.frame_time > STALE_VIDEO):
@@ -101,7 +104,10 @@ class HudDrawing:
             if st.get("bat", 100) <= self.settings["power"]["low_battery_warning"] and blink:
                 self.text("LOW BATTERY - LAND", (sw // 2, 80), (240, 70, 60), self.font_big, "midtop")
             if hud["video_fps"] and self.video.fps:
-                self.text(f"{self.video.fps:.0f} fps", (sw - 10, 42), (160, 160, 160), self.font_small, "topright")
+                label = f"{self.video.fps:.0f} fps"
+                if self.app_delay is not None and now - self.video.frame_time < 2:
+                    label += f" · app delay {self.app_delay * 1000:.0f} ms"
+                self.text(label, (sw - 10, 42), (160, 160, 160), self.font_small, "topright")
 
         bar = BAR_H if hud["hint_bar"] and not self.menu.is_open else 0
         if hud["sticks"]:

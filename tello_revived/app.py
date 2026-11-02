@@ -61,6 +61,7 @@ class App(FlightActions, HudDrawing):
         self.flight_log = FlightLog()
         self.flight_time = FlightTime()
         self.camera_down = False  # EDU / RoboMaster TT: streaming the downward camera
+        self.app_delay = None  # seconds from a video packet arriving to its frame on screen
         self.sounds = Sounds()
         self.sounds.enable(self.settings["hud"]["sound_alerts"])
         self.low_battery_warned = False
