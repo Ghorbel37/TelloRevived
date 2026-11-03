@@ -14,6 +14,28 @@ CMD_PORT = 8889
 STATE_PORT = 8890
 
 
+
+def _crc(data, value, poly):
+    """The (reflected) CRCs of the official app's binary packets: crc8 and crc16."""
+    for byte in data:
+        value ^= byte
+        for _ in range(8):
+            value = (value >> 1) ^ poly if value & 1 else value >> 1
+    return value
+
+
+def app_packet(command, kind, payload=b"", seq=0):
+    """A packet in the official app's binary protocol (not the SDK): 0xCC, size, crc8, kind, command,
+    sequence number, payload, crc16. Reverse-engineered by the community; used for throw & go."""
+    size = 11 + len(payload)
+    head = bytes([0xCC, (size << 3) & 0xFF, (size >> 5) & 0xFF])
+    body = head + bytes([_crc(head, 0x77, 0x8C), kind, command & 0xFF, command >> 8, seq & 0xFF, seq >> 8]) + payload
+    check = _crc(body, 0x3692, 0x8408)
+    return body + bytes([check & 0xFF, check >> 8])
+
+
+THROW_AND_GO = app_packet(0x5D, 0x48, bytes(1))
+
 class Tello:
     """Command, state and keep-alive link to the drone (SDK over UDP)."""
 
@@ -63,8 +85,9 @@ class Tello:
         self.log_lines.append((time.monotonic(), text))
 
     def send(self, cmd):
+        """A text command (str), or a packet of the official app's protocol (bytes)."""
         try:
-            self.sock.sendto(cmd.encode(), TELLO_ADDR)
+            self.sock.sendto(cmd if isinstance(cmd, bytes) else cmd.encode(), TELLO_ADDR)
         except OSError:
             pass  # not on the Tello network (yet)
 

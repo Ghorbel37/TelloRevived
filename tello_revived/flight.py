@@ -2,11 +2,14 @@
 
 import threading
 import time
+
+from tello_revived.drone import THROW_AND_GO
 from tello_revived.i18n import N_, t
 
 LOW_BAT_TAKEOFF = 10  # the Tello refuses to take off at or below about this battery level
 HOT_TEMP = 85  # degrees C: shown in red, and a warning before takeoff (Tellos often fly hotter, so no block)
 LAND_STALL = 4.0  # seconds without descending before a landing attempt counts as failed
+THROW_WINDOW = 5.0  # seconds the drone waits to be thrown
 
 
 class FlightActions:
@@ -36,6 +39,45 @@ class FlightActions:
                       t("the drone said '{reply}' with no reason - put it on a flat surface, or restart it", reply=reply))
         self.tello.log(t("Take off refused: {reason}", reason=reason))
         self.alert("error")
+
+    def throw_and_go(self):
+        """Start the motors and fly once the drone is thrown. The RoboMaster TT has "throwfly" in its SDK;
+        other Tellos only have it in the official app's own protocol, which they may ignore in SDK mode."""
+        if not self.tello.connected:
+            return self.tello.log(t("Not connected"))
+        if self.tello.flying or self.taking_off:
+            return self.tello.log(t("Already flying"))
+        if problem := self.takeoff_problem():
+            return self.tello.log(t("Take off refused: {reason}", reason=problem))
+        if time.monotonic() < self.throw_until:
+            return  # already waiting for the throw
+        self.throw_until = time.monotonic() + THROW_WINDOW + 2
+        self.landing = self.land_failed = False
+        self.land_fails = 0
+        threading.Thread(target=self._do_throw, daemon=True).start()
+
+    def _do_throw(self):
+        if self.settings["drone"]["model"] == "tt":
+            reply = self.tello.query("throwfly", 2.0)
+            if reply != "ok":
+                self.throw_until = 0.0
+                self.alert("error")
+                return self.tello.log(t("Throw & go refused: {reply}", reply=reply or t("no reply")))
+        else:
+            self.tello.send(THROW_AND_GO)
+        self.tello.log(t("Throw the drone within {seconds} s: hold it flat, then toss it gently up",
+                         seconds=f"{THROW_WINDOW:.0f}"))
+        while time.monotonic() < self.throw_until:
+            if self.tello.flying:
+                self.throw_until = 0.0
+                self.takeoff_until = time.monotonic() + self.settings["flight"]["takeoff_pause"]
+                return self.tello.log(t("Flying"))
+            time.sleep(0.1)
+        self.throw_until = 0.0
+        if self.settings["drone"]["model"] == "tt":
+            self.tello.log(t("No throw seen - press throw & go again to retry"))
+        else:
+            self.tello.log(t("Nothing happened - this Tello may not take throw & go from here (experimental)"))
 
     def takeoff_problem(self):
         """Why the drone will refuse to take off, if we can tell: only a low battery is certain."""

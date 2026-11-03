@@ -202,7 +202,8 @@ class HudDrawing:
             mode = ((t("LANDING"), amber) if self.landing else (t("TAKING OFF"), amber) if not drone.flying
                     else (t("FLYING"), (90, 220, 120)))
         elif drone.connected:
-            items = [(b("takeoff"), t("Take off"), None), *self.camera_items(b)] + help_items
+            items = [(b("takeoff"), t("Take off"), None), (b("throw"), t("Throw & go"), None),
+                     *self.camera_items(b)] + help_items
             mode = (t("READY"), (120, 190, 255))
         elif drone.blocked:
             allow = ("Square" if on_pad else "F") if firewall.can_allow() else None

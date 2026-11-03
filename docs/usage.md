@@ -5,6 +5,7 @@
 - [Language and units](#language-and-units)
 - [Video delay](#video-delay)
 - [Settings screen](#settings-screen)
+- [Throw & go](#throw--go)
 - [Landing](#landing)
 - [Battery and heat](#battery-and-heat)
 - [Gamepads](#gamepads)
@@ -82,6 +83,13 @@ Changing things:
 The first time the app opens, a full-screen question asks whether to check for updates each time it starts. Nothing else responds until it is answered, except the emergency stop. You can answer with Y/N, Cross/Circle, or a click, and change it later with **Check for updates when the app opens**. It checks only at start, once. It never shows the question or a message while the drone is flying; the result just waits on the About page. The check uses `curl`, which Windows, macOS and most Linux systems include.
 
 Settings are saved in `config.json`. While the settings screen is open, only the gamepad flies the drone, and the emergency stop still works.
+
+## Throw & go
+
+Press **G** (or bind a gamepad button in **Settings → Gamepad**) with the drone in your hand. Its motors start, and you have 5 seconds to toss it: hold it flat, then push it gently up and let go. It catches itself and hovers.
+
+- **RoboMaster TT:** uses the SDK's `throwfly` command.
+- **Tello and Tello EDU:** their SDK has no throw command, so the app sends the official app's own throw & go message instead. This is **experimental**: some firmware ignores it while the app is connected, and then the app says nothing happened. Keep your fingers clear of the propellers either way.
 
 ## Landing
 

@@ -31,6 +31,7 @@ _MOVE = {"forward": N_("Flies forward"), "back": N_("Flies backward"), "left": N
          "right": N_("Slides right without turning"), "up": N_("Climbs"), "down": N_("Descends"),
          "turn_left": N_("Turns left on the spot"), "turn_right": N_("Turns right on the spot")}
 _ACTIONS = {"precision": N_("Hold for slow, fine moves"), "takeoff": N_("Takes off and hovers"),
+            "throw": N_("Starts the motors: toss the drone within 5 s and it flies"),
             "land": N_("Lands where it is"), "emergency": N_("Cuts the motors at once - the drone falls"),
             "photo": N_("Saves the current frame to the media folder"), "record": N_("Starts or stops a video"),
             "speed": N_("Cycles slow / normal / fast"), "speed_slow": N_("Switches to slow speed"),

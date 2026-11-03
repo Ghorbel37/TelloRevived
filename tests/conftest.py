@@ -39,6 +39,7 @@ class FakeDrone:
       answer     False stops answering commands (switched off)
       handlers   command -> function(fake) returning the reply, or None for no reply
       padding    appended to every reply (the real drone sometimes adds NUL bytes)
+      binary     packets of the official app's protocol it was sent (throw & go)
     """
 
     def __init__(self, app_state_port, app_video_port):
@@ -48,6 +49,7 @@ class FakeDrone:
         self.handlers = {}
         self.padding = ""
         self.received = []  # every command except rc
+        self.binary = []
         self.rc = []  # (time, command)
         self.streaming = False
         self.running = True
@@ -74,6 +76,9 @@ class FakeDrone:
             try:
                 data, addr = self.sock.recvfrom(1024)
             except OSError:
+                continue
+            if data[:1] == bytes([0xCC]):  # the official app's protocol, not text
+                self.binary.append(data)
                 continue
             cmd = data.decode()
             if cmd.startswith("rc "):

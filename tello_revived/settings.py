@@ -23,10 +23,11 @@ DEFAULTS = {
         "speed_slow": pygame.KSCAN_1, "speed_normal": pygame.KSCAN_2, "speed_fast": pygame.KSCAN_3,
         "help": pygame.KSCAN_H, "settings": pygame.KSCAN_O,
         "fullscreen": pygame.KSCAN_F11, "quit": pygame.KSCAN_ESCAPE, "camera": pygame.KSCAN_V,
+        "throw": pygame.KSCAN_G,
     },
     "pad": {
         "takeoff": "triangle", "land": "cross", "speed": "circle", "photo": "r1", "record": "square",
-        "flip": "l1", "precision": "l2", "menu": "start", "camera": None,
+        "flip": "l1", "precision": "l2", "menu": "start", "camera": None, "throw": None,
         "emergency_1": "select", "emergency_2": "start",
     },
     "hud": {
@@ -75,7 +76,8 @@ KEY_ACTIONS = [
     ("forward", N_("Move forward")), ("back", N_("Move back")), ("left", N_("Move left")), ("right", N_("Move right")),
     ("up", N_("Climb")), ("down", N_("Descend")), ("turn_left", N_("Turn left")), ("turn_right", N_("Turn right")),
     ("precision", N_("Precision (hold)")), ("flip", N_("Flip (hold + move key)")),
-    ("takeoff", N_("Take off")), ("land", N_("Land")), ("emergency", N_("EMERGENCY motor stop")),
+    ("takeoff", N_("Take off")), ("throw", N_("Throw & go")), ("land", N_("Land")),
+    ("emergency", N_("EMERGENCY motor stop")),
     ("photo", N_("Photo")), ("record", N_("Start / stop recording")), ("speed", N_("Cycle speed mode")),
     ("speed_slow", N_("Speed: slow")), ("speed_normal", N_("Speed: normal")), ("speed_fast", N_("Speed: fast")),
     ("help", N_("Help")), ("settings", N_("Settings")), ("fullscreen", N_("Fullscreen")), ("quit", N_("Quit")),
@@ -83,7 +85,7 @@ KEY_ACTIONS = [
 ]
 
 PAD_ACTIONS = [
-    ("takeoff", N_("Take off")), ("land", N_("Land")), ("speed", N_("Cycle speed mode")),
+    ("takeoff", N_("Take off")), ("throw", N_("Throw & go")), ("land", N_("Land")), ("speed", N_("Cycle speed mode")),
     ("photo", N_("Photo")), ("record", N_("Start / stop recording")),
     ("flip", N_("Flip (hold + D-pad)")), ("precision", N_("Precision (hold)")),
     ("menu", N_("Help / settings")), ("camera", N_("Front / down camera (EDU, TT)")),
@@ -146,6 +148,7 @@ def help_rows(settings):
         (N_("Turn"), f"{k['turn_left']} / {k['turn_right']}", t("{stick} left / right", stick=other)),
         (N_("Precision (hold)"), k["precision"], p["precision"]),
         (N_("Take off"), k["takeoff"], p["takeoff"]),
+        (N_("Throw & go"), k["throw"], p["throw"]),
         (N_("Land"), k["land"], p["land"]),
         (N_("Speed mode"), f"{k['speed_slow']} {k['speed_normal']} {k['speed_fast']}"
                            + (f" / {k['speed']}" if settings["keys"]["speed"] else ""), p["speed"]),

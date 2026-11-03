@@ -59,6 +59,7 @@ class App(FlightActions, HudDrawing):
         self.auto_landed = False
         self.takeoff_until = 0.0
         self.flip_until = 0.0
+        self.throw_until = 0.0  # waiting to be thrown until then
         self.quit_after_land = False
         self.held_scans = set()
         self.taking_off = False  # takeoff sent, no answer yet
@@ -364,7 +365,7 @@ class App(FlightActions, HudDrawing):
             return self.flip(FLIP_DIRS[b])
         actions = {"takeoff": self.takeoff, "land": self.land, "speed": self.cycle_speed,
                    "photo": self.photo, "record": self.toggle_record, "menu": self.toggle_help,
-                   "camera": self.switch_camera}
+                   "camera": self.switch_camera, "throw": self.throw_and_go}
         for action, fn in actions.items():
             if pad[action] == b:
                 fn()
@@ -400,7 +401,7 @@ class App(FlightActions, HudDrawing):
                    "speed_slow": lambda: self.cycle_speed(0), "speed_normal": lambda: self.cycle_speed(1),
                    "speed_fast": lambda: self.cycle_speed(2), "photo": self.photo,
                    "record": self.toggle_record, "help": self.toggle_help, "settings": self.toggle_settings,
-                   "fullscreen": self.toggle_fullscreen, "camera": self.switch_camera}
+                   "fullscreen": self.toggle_fullscreen, "camera": self.switch_camera, "throw": self.throw_and_go}
         for action, fn in actions.items():
             if keys[action] == sc:
                 fn()

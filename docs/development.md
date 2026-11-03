@@ -3,7 +3,7 @@
 | File | What it does |
 |---|---|
 | `tello_revived/app.py` | The app: input, camera actions and the main loop |
-| `tello_revived/flight.py` | Take off, landing and the landing watch, flips, emergency stop, auto-land |
+| `tello_revived/flight.py` | Take off, throw & go, landing and the landing watch, flips, emergency stop, auto-land |
 | `tello_revived/hud.py` | Everything drawn during flight: video, flight data, button guide, warnings |
 | `tello_revived/menu.py` | Help and settings screen |
 | `tello_revived/drone.py` | The link to the drone: commands, replies, telemetry and keep-alive |
@@ -32,6 +32,8 @@ The Tello takes text commands over UDP port 8889 and answers on the same port. T
 - Receives the H.264 video on port 11111 after `streamon`.
 
 Replies can be padded with zero bytes, which the app strips.
+
+Throw & go is the one thing sent outside the SDK: the official app's binary message 0x005d (`drone.app_packet`, from the community's reverse-engineered protocol, checksums included), because only the RoboMaster TT has an SDK command for it (`throwfly`).
 
 The heading (HDG) comes from the `yaw` value in the telemetry. The Tello has no compass, so 0° is wherever the nose pointed when the drone was switched on.
 
