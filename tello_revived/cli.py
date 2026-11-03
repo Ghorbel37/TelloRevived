@@ -17,6 +17,7 @@ from pygame._sdl2 import controller as sdl_controller
 
 from tello_revived import VERSION, drone, labels
 from tello_revived.app import App
+from tello_revived.i18n import t
 from tello_revived.hud import MONO
 from tello_revived.labels import key_label
 from tello_revived.paths import ICON_PATH, resource_dir
@@ -42,9 +43,9 @@ def main():
         app = App()
     except OSError as e:
         pygame.display.set_caption("Tello Revived")
-        message_window([f"Can't open the Tello ports {drone.CMD_PORT}/{drone.STATE_PORT}:", str(e), "",
-                        "Tello Revived (or another drone app) is probably already running.",
-                        "Close it and start Tello Revived again."])
+        message_window([t("Can't open the Tello ports {ports}:", ports=f"{drone.CMD_PORT}/{drone.STATE_PORT}"), str(e), "",
+                        t("Tello Revived (or another drone app) is probably already running."),
+                        t("Close it and start Tello Revived again.")])
         pygame.quit()
         return 1
     app.run()

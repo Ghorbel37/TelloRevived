@@ -6,6 +6,7 @@ from collections import deque
 from fractions import Fraction
 
 import av
+from tello_revived.i18n import t
 
 VIDEO_URL = "udp://0.0.0.0:11111?overrun_nonfatal=1&fifo_size=5000000"
 
@@ -109,9 +110,9 @@ class Video:
         try:
             remux_to_mp4(raw, mp4)
             raw.unlink()
-            self.log(f"Saved {mp4.name}")
+            self.log(t("Saved {file}", file=mp4.name))
         except Exception as e:
-            self.log(f"Kept raw {raw.name} (mp4 failed: {e})")
+            self.log(t("Kept raw {file} (mp4 failed: {error})", file=raw.name, error=e))
 
     def close(self):
         self.stop_recording()

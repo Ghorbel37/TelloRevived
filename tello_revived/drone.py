@@ -7,6 +7,7 @@ import time
 from collections import deque
 
 from tello_revived.settings import stream_settings_supported
+from tello_revived.i18n import t
 
 TELLO_ADDR = ("192.168.10.1", 8889)
 CMD_PORT = 8889
@@ -82,7 +83,7 @@ class Tello:
                         break
                     if accept(reply):
                         return reply
-                    self.log(f"Tello: {reply}")  # a reply to some other command
+                    self.log(t("Tello: {reply}", reply=reply))  # a reply to some other command
                 return None
             finally:
                 self.awaiting = False
@@ -98,7 +99,7 @@ class Tello:
             if self.awaiting:
                 self.replies.put(reply)
             else:
-                self.log(f"Tello: {reply}")
+                self.log(t("Tello: {reply}", reply=reply))
 
     def _state_loop(self):
         while self.running:
@@ -118,7 +119,7 @@ class Tello:
                 self.state_time = time.monotonic()
                 if self.blocked:
                     self.blocked = False
-                    self.log("Telemetry is getting through now")
+                    self.log(t("Telemetry is getting through now"))
 
     def want_video(self):
         mode = self.settings["power"]["video"]
@@ -142,8 +143,8 @@ class Tello:
             reply = self.query(cmd, 2.0)
             if reply != "ok":
                 self.stream_settings_ok = False
-                self.log(f"This Tello can't change stream quality ('{cmd}': {reply or 'no reply'}) - "
-                         "needs SDK 3.0 firmware, using its defaults")
+                self.log(t("This Tello can't change stream quality ('{command}': {reply}) - "
+                           "needs SDK 3.0 firmware, using its defaults", command=cmd, reply=reply or t("no reply")))
                 return
         self.stream_settings_ok = True
 
@@ -156,13 +157,13 @@ class Tello:
                     self._check_blocked()
                     continue
                 self.session = False
-                self.log("Link lost - reconnecting")
+                self.log(t("Link lost - reconnecting"))
             if not self.session:
                 if self.query("command", 1.0, lambda r: r == "ok"):
                     self.session = True
                     self.session_time = time.monotonic()
                     self.stream_on = None
-                    self.log("Tello connected")
+                    self.log(t("Tello connected"))
                     self.apply_stream_settings()
                 else:
                     time.sleep(0.5)
@@ -174,7 +175,7 @@ class Tello:
                 if self.query(cmd, 2.0, lambda r: r == "ok"):
                     self.stream_on = want
                 else:
-                    self.log(f"{cmd} got no reply - retrying")
+                    self.log(t("{command} got no reply - retrying", command=cmd))
             if self.connected and now - last_wifi > 3:
                 last_wifi = now
                 reply = self.query("wifi?", 1.0, lambda r: r.isdigit())
@@ -187,12 +188,12 @@ class Tello:
         if self.query("command", 1.0, lambda r: r == "ok"):
             if not self.blocked:
                 self.blocked = True
-                self.log("The drone answers, but its telemetry is blocked - check the firewall")
+                self.log(t("The drone answers, but its telemetry is blocked - check the firewall"))
             self.session_time = time.monotonic()  # check again in 3 s, without reconnecting
             time.sleep(0.5)
         else:  # it stopped answering too: switched off or out of range
             self.session = self.blocked = False
-            self.log("Link lost - reconnecting")
+            self.log(t("Link lost - reconnecting"))
 
     def close(self):
         self.running = False

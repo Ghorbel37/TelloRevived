@@ -15,7 +15,7 @@ os.environ["SDL_AUDIODRIVER"] = "dummy"
 import pygame  # noqa: E402
 import pytest  # noqa: E402
 
-from tello_revived import app as app_module, drone, settings, updates, video, wifi  # noqa: E402
+from tello_revived import app as app_module, drone, i18n, settings, updates, video, wifi  # noqa: E402
 
 CLIP = Path(__file__).resolve().parent.parent / "assets" / "selftest.h264"  # 5 frames, 160x120
 
@@ -132,6 +132,7 @@ def app(tmp_path, monkeypatch):
     monkeypatch.setattr(wifi, "connect", lambda ssid: "tests don't connect")
     monkeypatch.setattr(app_module, "WIFI_SCAN_EVERY", 0.2)
     monkeypatch.setattr(updates, "latest_release", lambda: None)  # no calls to GitHub from the tests
+    monkeypatch.setattr(i18n, "system_language", lambda: "en")  # the tests read the English text
     for attempt in range(5):  # a free port can be taken by something else before the app binds it
         cmd_port, state_port, video_port = free_udp_ports(3)
         fake = FakeDrone(state_port, video_port)

@@ -11,6 +11,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from tello_revived.i18n import t
+
 DRONE_NETWORK = re.compile(r"^(TELLO|RMTT)-\w+$")
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # no console flashing up on Windows
 
@@ -115,7 +117,7 @@ def windows_profile(ssid):
 def connect(ssid):
     """Join a drone's network. Returns None if it went ahead, else a short reason. Takes a few seconds."""
     if not DRONE_NETWORK.match(ssid):
-        return "not a drone network"
+        return t("not a drone network")
     if sys.platform == "win32":
         if f": {ssid}" not in _run("netsh", "wlan", "show", "profiles"):
             # a profile for this open network, for the current user only (no admin needed)
@@ -129,4 +131,4 @@ def connect(ssid):
         code = code or bool(out.strip())  # networksetup exits 0 even when it fails, but says why
     else:
         code, out = _call("nmcli", "dev", "wifi", "connect", ssid, timeout=30)
-    return None if code == 0 else (out.strip().splitlines() or ["couldn't connect"])[-1]
+    return None if code == 0 else (out.strip().splitlines() or [t("couldn't connect")])[-1]

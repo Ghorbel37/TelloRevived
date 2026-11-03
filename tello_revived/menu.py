@@ -9,12 +9,14 @@ import pygame
 
 from tello_revived import REPO_URL, VERSION, desktop
 from tello_revived import flights as flights_module
+from tello_revived.i18n import N_, languages, t
 from tello_revived.labels import key_label, pad_label
 from tello_revived.paths import MEDIA_DIR
 from tello_revived.settings import DRONE_MODELS, KEY_ACTIONS, PAD_ACTIONS, help_rows, stream_settings_supported
 
 STREAM_KEYS = ("resolution", "stream_fps", "bitrate")  # SDK 3.0 only
-TABS = ["Help", "Keyboard", "Gamepad", "HUD", "Flight", "Video & Power", "Flights", "About"]
+TABS = [N_("Help"), N_("Keyboard"), N_("Gamepad"), N_("HUD"), N_("Flight"), N_("Video & Power"),
+        N_("Flights"), N_("About")]
 
 ACCENT = (120, 190, 255)
 YELLOW = (240, 200, 60)
@@ -25,41 +27,42 @@ ROW_H = 28
 HINT_H = 26  # line above the button bar for the highlighted setting's hint
 
 # One short line per setting, shown above the button bar while it's highlighted.
-_MOVE = {"forward": "Flies forward", "back": "Flies backward", "left": "Slides left without turning",
-         "right": "Slides right without turning", "up": "Climbs", "down": "Descends",
-         "turn_left": "Turns left on the spot", "turn_right": "Turns right on the spot"}
-_ACTIONS = {"precision": "Hold for slow, fine moves", "takeoff": "Takes off and hovers",
-            "land": "Lands where it is", "emergency": "Cuts the motors at once - the drone falls",
-            "photo": "Saves the current frame to the media folder", "record": "Starts or stops a video",
-            "speed": "Cycles slow / normal / fast", "speed_slow": "Switches to slow speed",
-            "speed_normal": "Switches to normal speed", "speed_fast": "Switches to fast speed"}
+_MOVE = {"forward": N_("Flies forward"), "back": N_("Flies backward"), "left": N_("Slides left without turning"),
+         "right": N_("Slides right without turning"), "up": N_("Climbs"), "down": N_("Descends"),
+         "turn_left": N_("Turns left on the spot"), "turn_right": N_("Turns right on the spot")}
+_ACTIONS = {"precision": N_("Hold for slow, fine moves"), "takeoff": N_("Takes off and hovers"),
+            "land": N_("Lands where it is"), "emergency": N_("Cuts the motors at once - the drone falls"),
+            "photo": N_("Saves the current frame to the media folder"), "record": N_("Starts or stops a video"),
+            "speed": N_("Cycles slow / normal / fast"), "speed_slow": N_("Switches to slow speed"),
+            "speed_normal": N_("Switches to normal speed"), "speed_fast": N_("Switches to fast speed")}
 HINTS = {
-    "keys": {**_MOVE, **_ACTIONS, "flip": "Hold, then a move key to flip that way", "help": "Shows the controls",
-             "settings": "Opens this screen", "fullscreen": "Fullscreen on / off",
-             "quit": "Quits - lands first if flying",
-             "camera": "Tello EDU / RoboMaster TT: switch to the downward camera and back"},
-    "pad": {**_ACTIONS, "flip": "Hold, then the D-pad to flip that way", "menu": "Opens help and settings",
-            "emergency_1": "Press both emergency buttons together", "emergency_2": "Press both emergency buttons together",
-            "camera": "Tello EDU / RoboMaster TT: switch to the downward camera and back"},
-    "hud": {"top_bar": "Battery, Wi-Fi, flight time, temperature", "flight_data": "Altitude, height, speed, climb rate",
-            "heading": "Angle turned since power-on (no compass)", "attitude": "Shows the drone's tilt",
-            "sticks": "Shows your stick positions", "messages": "Short status messages",
-            "hint_bar": "The buttons you can use right now", "video_fps": "Video frames per second, and the app's own delay (receive to screen)",
-            "sound_alerts": "Beeps for low battery, auto-land, failed landing, refusals, firewall",
-            "vibration_alerts": "The same alerts, felt through the gamepad",
-            "units": "For height and speed in the flight data panel"},
-    "drone": {"model": "Hides settings your drone can't use"},
-    "flight": {"move_stick": "This stick moves; the other climbs and turns",
-               "speed_slow": "Top speed in slow mode", "speed_normal": "Top speed in normal mode",
-               "speed_fast": "Top speed in fast mode", "precision": "Speed while precision is held",
-               "deadzone": "Ignores small stick drift", "expo": "Gentler near the centre, full at the edge",
-               "retry_landing": "Resends land until it touches down", "land_attempts": "Failed landings before the warning",
-               "takeoff_pause": "Ignores the sticks right after takeoff", "land_on_quit": "Quitting while flying lands first",
-               "rejoin_wifi": "Only if it drops mid-flight; switching networks on the ground is left alone"},
-    "power": {"video": "Streaming heats the drone and uses battery", "resolution": "Lower uses less Wi-Fi and battery",
-              "stream_fps": "Lower uses less battery", "bitrate": "Lower is smoother on weak Wi-Fi",
-              "app_fps": "Lower saves PC battery", "auto_land_battery": "Lands by itself at this level",
-              "low_battery_warning": "Warns at this battery level"},
+    "keys": {**_MOVE, **_ACTIONS, "flip": N_("Hold, then a move key to flip that way"), "help": N_("Shows the controls"),
+             "settings": N_("Opens this screen"), "fullscreen": N_("Fullscreen on / off"),
+             "quit": N_("Quits - lands first if flying"),
+             "camera": N_("Tello EDU / RoboMaster TT: switch to the downward camera and back")},
+    "pad": {**_ACTIONS, "flip": N_("Hold, then the D-pad to flip that way"), "menu": N_("Opens help and settings"),
+            "emergency_1": N_("Press both emergency buttons together"), "emergency_2": N_("Press both emergency buttons together"),
+            "camera": N_("Tello EDU / RoboMaster TT: switch to the downward camera and back")},
+    "hud": {"top_bar": N_("Battery, Wi-Fi, flight time, temperature"), "flight_data": N_("Altitude, height, speed, climb rate"),
+            "heading": N_("Angle turned since power-on (no compass)"), "attitude": N_("Shows the drone's tilt"),
+            "sticks": N_("Shows your stick positions"), "messages": N_("Short status messages"),
+            "hint_bar": N_("The buttons you can use right now"), "video_fps": N_("Video frames per second, and the app's own delay (receive to screen)"),
+            "sound_alerts": N_("Beeps for low battery, auto-land, failed landing, refusals, firewall"),
+            "vibration_alerts": N_("The same alerts, felt through the gamepad"),
+            "units": N_("For height and speed in the flight data panel")},
+    "drone": {"model": N_("Hides settings your drone can't use")},
+    "app": {"language": N_("The app's language; Auto follows your computer")},
+    "flight": {"move_stick": N_("This stick moves; the other climbs and turns"),
+               "speed_slow": N_("Top speed in slow mode"), "speed_normal": N_("Top speed in normal mode"),
+               "speed_fast": N_("Top speed in fast mode"), "precision": N_("Speed while precision is held"),
+               "deadzone": N_("Ignores small stick drift"), "expo": N_("Gentler near the centre, full at the edge"),
+               "retry_landing": N_("Resends land until it touches down"), "land_attempts": N_("Failed landings before the warning"),
+               "takeoff_pause": N_("Ignores the sticks right after takeoff"), "land_on_quit": N_("Quitting while flying lands first"),
+               "rejoin_wifi": N_("Only if it drops mid-flight; switching networks on the ground is left alone")},
+    "power": {"video": N_("Streaming heats the drone and uses battery"), "resolution": N_("Lower uses less Wi-Fi and battery"),
+              "stream_fps": N_("Lower uses less battery"), "bitrate": N_("Lower is smoother on weak Wi-Fi"),
+              "app_fps": N_("Lower saves PC battery"), "auto_land_battery": N_("Lands by itself at this level"),
+              "low_battery_warning": N_("Warns at this battery level")},
 }
 
 
@@ -94,8 +97,8 @@ class Menu:
 
     def rows(self):
         name = TABS[self.tab]
-        reset = lambda section, what: Row("button", f"Reset {what} to defaults", fn=lambda: self.reset(section),
-                                          hint="Puts this page back to its defaults")
+        reset = lambda section, label: Row("button", label, fn=lambda: self.reset(section),
+                                          hint=N_("Puts this page back to its defaults"))
         if name == "Help":
             return [Row("help", r) for r in help_rows(self.settings)]
         if name == "About":
@@ -103,57 +106,60 @@ class Menu:
         if name == "Flights":
             return self.flight_rows()
         if name == "Keyboard":
-            return [Row("key", label, "keys", a) for a, label in KEY_ACTIONS] + [reset("keys", "keyboard")]
+            return [Row("key", label, "keys", a) for a, label in KEY_ACTIONS] + [reset("keys", N_("Reset keyboard to defaults"))]
         if name == "Gamepad":
-            return [Row("pad", label, "pad", a) for a, label in PAD_ACTIONS] + [reset("pad", "gamepad")]
+            return [Row("pad", label, "pad", a) for a, label in PAD_ACTIONS] + [reset("pad", N_("Reset gamepad to defaults"))]
         if name == "HUD":
-            items = [("top_bar", "Top bar (battery, Wi-Fi, flight time)"), ("flight_data", "Altitude / speed panel"),
-                     ("heading", "Heading"), ("attitude", "Horizon line"), ("sticks", "Stick boxes"),
-                     ("messages", "Messages"), ("hint_bar", "Button guide (bottom bar)"),
-                     ("sound_alerts", "Sound alerts"), ("vibration_alerts", "Vibration alerts (gamepad)"),
-                     ("video_fps", "Video fps and app delay")]
-            units = Row("choice", "Units", "hud", "units", [("metric", "Metric (m, m/s)"),
-                        ("metric_kmh", "Metric (m, km/h)"), ("imperial", "Imperial (ft, mph)")])
-            return [units] + [Row("toggle", label, "hud", k) for k, label in items] + [reset("hud", "HUD")]
+            items = [("top_bar", N_("Top bar (battery, Wi-Fi, flight time)")), ("flight_data", N_("Altitude / speed panel")),
+                     ("heading", N_("Heading")), ("attitude", N_("Horizon line")), ("sticks", N_("Stick boxes")),
+                     ("messages", N_("Messages")), ("hint_bar", N_("Button guide (bottom bar)")),
+                     ("sound_alerts", N_("Sound alerts")), ("vibration_alerts", N_("Vibration alerts (gamepad)")),
+                     ("video_fps", N_("Video fps and app delay"))]
+            units = Row("choice", N_("Units"), "hud", "units", [("metric", N_("Metric (m, m/s)")),
+                        ("metric_kmh", N_("Metric (m, km/h)")), ("imperial", N_("Imperial (ft, mph)"))])
+            language = Row("choice", N_("Language"), "app", "language",
+                           [("auto", N_("Auto (computer's language)"))] + languages())
+            return [language, units] + [Row("toggle", label, "hud", k) for k, label in items] \
+                + [reset("hud", N_("Reset HUD to defaults"))]
         if name == "Flight":
             return [
-                Row("choice", "Drone model", "drone", "model", DRONE_MODELS),
-                Row("choice", "Move with", "flight", "move_stick",
-                    [("left", "Left stick"), ("right", "Right stick")]),
-                Row("number", "Slow speed", "flight", "speed_slow", lo=5, hi=100, step=5, fmt="{}%"),
-                Row("number", "Normal speed", "flight", "speed_normal", lo=5, hi=100, step=5, fmt="{}%"),
-                Row("number", "Fast speed", "flight", "speed_fast", lo=5, hi=100, step=5, fmt="{}%"),
-                Row("number", "Precision speed", "flight", "precision",
+                Row("choice", N_("Drone model"), "drone", "model", DRONE_MODELS),
+                Row("choice", N_("Move with"), "flight", "move_stick",
+                    [("left", N_("Left stick")), ("right", N_("Right stick"))]),
+                Row("number", N_("Slow speed"), "flight", "speed_slow", lo=5, hi=100, step=5, fmt="{}%"),
+                Row("number", N_("Normal speed"), "flight", "speed_normal", lo=5, hi=100, step=5, fmt="{}%"),
+                Row("number", N_("Fast speed"), "flight", "speed_fast", lo=5, hi=100, step=5, fmt="{}%"),
+                Row("number", N_("Precision speed"), "flight", "precision",
                     lo=0.1, hi=1.0, step=0.05, fmt="{:.0%}"),
-                Row("number", "Stick deadzone", "flight", "deadzone", lo=0.0, hi=0.3, step=0.01, fmt="{:.2f}"),
-                Row("number", "Stick expo (softer centre)", "flight", "expo", lo=0.0, hi=1.0, step=0.05,
+                Row("number", N_("Stick deadzone"), "flight", "deadzone", lo=0.0, hi=0.3, step=0.01, fmt="{:.2f}"),
+                Row("number", N_("Stick expo (softer centre)"), "flight", "expo", lo=0.0, hi=1.0, step=0.05,
                     fmt="{:.2f}"),
-                Row("toggle", "Retry landing automatically", "flight", "retry_landing"),
-                Row("number", "Failed landings before warning", "flight", "land_attempts", lo=1, hi=6),
-                Row("number", "Pause sticks after takeoff", "flight", "takeoff_pause", lo=0, hi=10,
+                Row("toggle", N_("Retry landing automatically"), "flight", "retry_landing"),
+                Row("number", N_("Failed landings before warning"), "flight", "land_attempts", lo=1, hi=6),
+                Row("number", N_("Pause sticks after takeoff"), "flight", "takeoff_pause", lo=0, hi=10,
                     fmt="{} s"),
-                Row("toggle", "Land before quitting", "flight", "land_on_quit"),
-                Row("toggle", "Rejoin the drone's Wi-Fi if it drops", "flight", "rejoin_wifi"),
-                reset("flight", "flight settings"),
+                Row("toggle", N_("Land before quitting"), "flight", "land_on_quit"),
+                Row("toggle", N_("Rejoin the drone's Wi-Fi if it drops"), "flight", "rejoin_wifi"),
+                reset("flight", N_("Reset flight settings to defaults")),
             ]
         stream = [
-            Row("choice", "Stream resolution", "power", "resolution",
-                [("default", "Drone default"), ("high", "High (720p)"), ("low", "Low (480p)")]),
-            Row("choice", "Stream frame rate", "power", "stream_fps",
-                [("default", "Drone default"), ("high", "High (30)"), ("middle", "Middle (15)"), ("low", "Low (5)")]),
-            Row("choice", "Stream bitrate", "power", "bitrate",
-                [("default", "Drone default"), ("auto", "Auto")] + [(str(n), f"{n} Mbps") for n in range(1, 6)]),
+            Row("choice", N_("Stream resolution"), "power", "resolution",
+                [("default", N_("Drone default")), ("high", N_("High (720p)")), ("low", N_("Low (480p)"))]),
+            Row("choice", N_("Stream frame rate"), "power", "stream_fps",
+                [("default", N_("Drone default")), ("high", N_("High (30)")), ("middle", N_("Middle (15)")), ("low", N_("Low (5)"))]),
+            Row("choice", N_("Stream bitrate"), "power", "bitrate",
+                [("default", N_("Drone default")), ("auto", N_("Auto"))] + [(str(n), f"{n} Mbps") for n in range(1, 6)]),
         ] if stream_settings_supported(self.settings) else []
         return [
-            Row("choice", "Video stream", "power", "video",
-                [("flying", "Only while flying"), ("on", "On"), ("off", "Off")]),
+            Row("choice", N_("Video stream"), "power", "video",
+                [("flying", N_("Only while flying")), ("on", N_("On")), ("off", N_("Off"))]),
             *stream,
-            Row("choice", "App frame rate", "power", "app_fps", [(20, "20 fps"), (30, "30 fps"), (60, "60 fps")]),
-            Row("choice", "Auto-land at battery", "power", "auto_land_battery",
-                [(0, "Off")] + [(n, f"{n}%") for n in (10, 15, 20, 25, 30)]),
-            Row("number", "Low battery warning", "power", "low_battery_warning", lo=5, hi=50, step=5, fmt="{}%"),
+            Row("choice", N_("App frame rate"), "power", "app_fps", [(20, N_("20 fps")), (30, N_("30 fps")), (60, N_("60 fps"))]),
+            Row("choice", N_("Auto-land at battery"), "power", "auto_land_battery",
+                [(0, N_("Off"))] + [(n, f"{n}%") for n in (10, 15, 20, 25, 30)]),
+            Row("number", N_("Low battery warning"), "power", "low_battery_warning", lo=5, hi=50, step=5, fmt="{}%"),
             *self.media_rows(),
-            reset("power", "video & power"),
+            reset("power", N_("Reset video & power to defaults")),
         ]
 
     def flight_rows(self):
@@ -161,26 +167,28 @@ class Menu:
         folder = self.app.media_dir()
         flights = self.app.flights.list(folder)
         if not flights:
-            return [Row("info", "No flight logs yet."),
-                    Row("info", "Turn on Video & Power > Save flight logs, and each flight appears here."),
-                    Row("info", f"(looking in {folder})")]
-        rows = [Row("text", f"{len(flights)} flight{'s' * (len(flights) > 1)}")]
+            return [Row("info", N_("No flight logs yet.")),
+                    Row("info", N_("Turn on Video & Power > Save flight logs, and each flight appears here.")),
+                    Row("info", t("(looking in {folder})", folder=folder))]
+        rows = [Row("text", t("{count} flights", count=len(flights)) if len(flights) > 1 else t("1 flight"))]
         trend = flights_module.battery_trend(flights)
         if trend:
             recent, earlier = trend
-            line = f"Battery use: {recent:.1f}% a minute lately"
+            line = t("Battery use: {recent}% a minute lately", recent=f"{recent:.1f}")
             if earlier:
-                line += f", {earlier:.1f}% in earlier flights"
+                line = t("Battery use: {recent}% a minute lately, {earlier}% in earlier flights",
+                         recent=f"{recent:.1f}", earlier=f"{earlier:.1f}")
             rows.append(Row("info", line))
             if earlier and recent > earlier * 1.15:
-                rows.append(Row("info", "Recent flights drain the battery faster: it may be ageing"))
+                rows.append(Row("info", N_("Recent flights drain the battery faster: it may be ageing")))
         dist, dist_unit = self.app.distance_units()
         for f in flights[:40]:
             minutes, seconds = divmod(int(f.duration), 60)
-            label = (f"{f.started:%Y-%m-%d %H:%M}   {minutes}:{seconds:02d}   "
-                     f"max {f.max_height / 100 * dist:.1f} {dist_unit}   battery {f.battery_start}% > {f.battery_end}%")
+            label = t("{date}   {time}   max {height}   battery {start}% > {end}%", date=f"{f.started:%Y-%m-%d %H:%M}",
+                      time=f"{minutes}:{seconds:02d}", height=f"{f.max_height / 100 * dist:.1f} {dist_unit}",
+                      start=f.battery_start, end=f.battery_end)
             row = Row("button", label, fn=lambda f=f: self.show_graph(f),
-                      hint=self.delete_hint(f) or "Shows height, battery and speed over this flight")
+                      hint=self.delete_hint(f) or N_("Shows height, battery and speed over this flight"))
             row.flight = f
             rows.append(row)
         return rows
@@ -190,7 +198,7 @@ class Menu:
 
     def delete_hint(self, flight):
         if self.pending_delete == flight.path:
-            return f"Press {'Square' if self.device == 'gamepad' else 'Del'} again to delete this flight log"
+            return t("Press {key} again to delete this flight log", key="Square" if self.device == "gamepad" else "Del")
         return None
 
     def selected_flight(self):
@@ -209,10 +217,10 @@ class Menu:
         try:
             flight.path.unlink()
         except OSError as e:
-            return self.app.tello.log(f"Couldn't delete {flight.path.name}: {e.strerror or e}")
+            return self.app.tello.log(t("Couldn't delete {file}: {error}", file=flight.path.name, error=e.strerror or e))
         self.app.flights.cache.pop(flight.path, None)
         self.graph = None
-        self.app.tello.log(f"Deleted {flight.path.name}")
+        self.app.tello.log(t("Deleted {file}", file=flight.path.name))
         self._fix_selection(-1)
 
     def menu_entry_rows(self):
@@ -220,36 +228,36 @@ class Menu:
         if not desktop.supported():
             return []
         if desktop.installed():
-            return [Row("button", "Remove from the applications menu", fn=self.app.toggle_menu_entry,
-                        hint="Deletes the menu entry and icon this app added")]
-        return [Row("button", "Add to the applications menu", fn=self.app.toggle_menu_entry,
-                    hint="So it appears in your app menu, with its icon, pointing at this copy")]
+            return [Row("button", N_("Remove from the applications menu"), fn=self.app.toggle_menu_entry,
+                        hint=N_("Deletes the menu entry and icon this app added"))]
+        return [Row("button", N_("Add to the applications menu"), fn=self.app.toggle_menu_entry,
+                    hint=N_("So it appears in your app menu, with its icon, pointing at this copy"))]
 
     def update_rows(self):
         app = self.app
         if app.new_release:
             tag, url = app.new_release
-            first = Row("button", f"Update available: {tag} - open the download page",
-                        fn=lambda: webbrowser.open(url), hint="Opens the release page in your browser")
+            first = Row("button", t("Update available: {version} - open the download page", version=tag),
+                        fn=lambda: webbrowser.open(url), hint=N_("Opens the release page in your browser"))
         else:
             first = Row("info", app.update_state)
         return [first,
-                Row("button", "Check for updates now", fn=app.check_for_updates,
-                    hint="Asks GitHub for the latest version"),
-                Row("toggle", "Check for updates when the app opens", "app", "check_updates",
-                    hint="Asks GitHub once at start; never shows anything while flying")]
+                Row("button", N_("Check for updates now"), fn=app.check_for_updates,
+                    hint=N_("Asks GitHub for the latest version")),
+                Row("toggle", N_("Check for updates when the app opens"), "app", "check_updates",
+                    hint=N_("Asks GitHub once at start; never shows anything while flying"))]
 
     def media_rows(self):
         folder = str(self.app.media_dir())
         if len(folder) > 48:
             folder = "..." + folder[-45:]
-        rows = [Row("button", f"Photos and videos: {folder}", fn=self.app.choose_media_dir,
-                    hint="Choose where photos and recordings are saved"),
-                Row("toggle", "Save flight logs", "files", "flight_log",
-                    hint="A CSV of the drone's telemetry for each flight, in that folder")]
+        rows = [Row("button", t("Photos and videos: {folder}", folder=folder), fn=self.app.choose_media_dir,
+                    hint=N_("Choose where photos and recordings are saved")),
+                Row("toggle", N_("Save flight logs"), "files", "flight_log",
+                    hint=N_("A CSV of the drone's telemetry for each flight, in that folder"))]
         if self.settings["files"]["media_dir"]:
-            rows.append(Row("button", "Use the default folder", fn=lambda: self.app.set_media_dir(""),
-                            hint=f"Back to {MEDIA_DIR}"))
+            rows.append(Row("button", N_("Use the default folder"), fn=lambda: self.app.set_media_dir(""),
+                            hint=t("Back to {folder}", folder=MEDIA_DIR)))
         return rows
 
     # ---- open / close --------------------------------------------------------
@@ -282,17 +290,17 @@ class Menu:
         media = self.app.media_dir()
         return [
             Row("text", f"Tello Revived v{VERSION}"),
-            Row("info", "Fly a DJI/Ryze Tello from your computer with a gamepad or keyboard."),
+            Row("info", N_("Fly a DJI/Ryze Tello from your computer with a gamepad or keyboard.")),
             Row("info", ""),
             Row("button", REPO_URL.removeprefix("https://"), fn=lambda: webbrowser.open(REPO_URL),
-                hint="Opens in your browser"),
-            Row("button", "Open the photos and videos folder", fn=lambda: webbrowser.open(media.as_uri()),
-                hint="Opens in your file manager"),
+                hint=N_("Opens in your browser")),
+            Row("button", N_("Open the photos and videos folder"), fn=lambda: webbrowser.open(media.as_uri()),
+                hint=N_("Opens in your file manager")),
             *self.update_rows(),
             *self.menu_entry_rows(),
             Row("info", ""),
-            Row("info", f"Settings file:  {self.settings.path}"),
-            Row("info", f"Photos/videos:  {media}"),
+            Row("info", t("Settings file:  {path}", path=self.settings.path)),
+            Row("info", t("Photos/videos:  {folder}", folder=media)),
             Row("info", f"Python {platform.python_version()}, pygame-ce {pygame.version.ver}, "
                         f"PyAV {av.__version__}, {platform.system()} {platform.release()}"),
         ]
@@ -300,7 +308,7 @@ class Menu:
     def reset(self, section):
         self.settings.reset(section)
         self.app.on_setting_changed(section, None)
-        self.app.tello.log(f"{TABS[self.tab]} reset to defaults")
+        self.app.tello.log(t("{page} reset to defaults", page=t(TABS[self.tab])))
 
     def activate(self, row, direction=1):
         s = self.settings
@@ -470,16 +478,16 @@ class Menu:
             return pad_label(b), RED if dup else YELLOW
         if row.kind == "toggle":
             on = s[row.section][row.key]
-            return ("ON" if on else "OFF"), GREEN if on else DIM
+            return (t("ON") if on else t("OFF")), GREEN if on else DIM
         if row.kind == "choice":
             cur = s[row.section][row.key]
-            label = next((t for v, t in row.options if v == cur), str(cur))
+            label = t(next((name for v, name in row.options if v == cur), str(cur)))
             if row.key in STREAM_KEYS and self.app.tello.stream_settings_ok is False:
-                return f"<  {label}  >  not supported", DIM
+                return f"<  {label}  >  {t('not supported')}", DIM
             return f"<  {label}  >", YELLOW
         if row.kind == "number":
             v = s[row.section][row.key]
-            text = "off" if row.key == "takeoff_pause" and v == 0 else row.fmt.format(v)
+            text = t("off") if row.key == "takeoff_pause" and v == 0 else row.fmt.format(v)
             return f"<  {text}  >", YELLOW
         return "", YELLOW
 
@@ -495,6 +503,7 @@ class Menu:
         self.tab_rects = []
         x = box.left + 16
         for i, name in enumerate(TABS):
+            name = t(name)
             img = app.font_small.render(name, True, (255, 255, 255))
             rect = pygame.Rect(x, box.top + 12, img.get_width() + 20, 28)
             if i == self.tab:
@@ -524,8 +533,8 @@ class Menu:
         self.row_rects = []
         y = top
         if TABS[self.tab] == "Help":
-            for x_off, head in ((20, "CONTROL"), (330, "KEYBOARD"), (560, "GAMEPAD")):
-                app.text(head, (box.left + x_off, y), ACCENT, app.font_small)
+            for x_off, head in ((20, N_("CONTROL")), (330, N_("KEYBOARD")), (560, N_("GAMEPAD"))):
+                app.text(t(head), (box.left + x_off, y), ACCENT, app.font_small)
             y += ROW_H
             visible -= 1
         for i in range(self.scroll, min(len(rows), self.scroll + visible)):
@@ -534,35 +543,35 @@ class Menu:
             value_rect = None
             if row.kind == "help":
                 what, kb, pad = row.label
-                app.text(what, (box.left + 20, y + 5), font=app.font_small)
+                app.text(t(what), (box.left + 20, y + 5), font=app.font_small)
                 app.text(kb, (box.left + 330, y + 5), YELLOW, app.font_small)
                 app.text(pad, (box.left + 560, y + 5), YELLOW, app.font_small)
             elif row.kind == "info":
-                app.text(row.label, (box.left + 20, y + 5), DIM, app.font_small)
+                app.text(t(row.label), (box.left + 20, y + 5), DIM, app.font_small)
             elif row.kind == "text":
-                app.text(row.label, (box.left + 20, y + 3), font=app.font)
+                app.text(t(row.label), (box.left + 20, y + 3), font=app.font)
             else:
                 if i == self.sel:
                     pygame.draw.rect(screen, (45, 65, 105), rect, border_radius=5)
                 color = ACCENT if row.kind == "button" else (235, 235, 235)
-                app.text(row.label, (box.left + 20, y + 5), color, app.font_small)
+                app.text(t(row.label), (box.left + 20, y + 5), color, app.font_small)
                 value, vcolor = self.value_text(row)
                 if self.capture and i == self.sel:
                     blink = int(time.monotonic() * 3) % 2 == 0
-                    value = ("Press a key..." if self.capture[0] == "key" else "Press a pad button...") if blink else ""
+                    value = (t("Press a key...") if self.capture[0] == "key" else t("Press a pad button...")) if blink else ""
                     vcolor = (255, 255, 255)
                 if value:
                     value_rect = app.text(value, (box.right - 24, y + 5), vcolor, app.font_small, "topright")
             self.row_rects.append((rect, i, value_rect))
             y += ROW_H
         if self.scroll + visible < len(rows):
-            app.text("v  more below  v", (box.centerx, y + 5), DIM, app.font_small, "midtop")
+            app.text(f"v  {t('more below')}  v", (box.centerx, y + 5), DIM, app.font_small, "midtop")
         elif self.scroll > 0:
-            app.text("^  more above  ^", (box.centerx, y + 5), DIM, app.font_small, "midtop")
+            app.text(f"^  {t('more above')}  ^", (box.centerx, y + 5), DIM, app.font_small, "midtop")
 
         row = rows[self.sel] if self.sel < len(rows) and rows[self.sel].selectable else None
         if row and row.hint and not self.capture:
-            app.text(row.hint, (box.left + 20, box.bottom - 36 - HINT_H + 4), ACCENT, app.font_small)
+            app.text(t(row.hint), (box.left + 20, box.bottom - 36 - HINT_H + 4), ACCENT, app.font_small)
         pygame.draw.line(screen, (70, 80, 100), (box.left, box.bottom - 36), (box.right, box.bottom - 36))
         app.text(self.footer(), (box.centerx, box.bottom - 27), DIM, app.font_small, "midtop")
 
@@ -571,13 +580,14 @@ class Menu:
         app, f = self.app, self.graph
         app.screen.fill((16, 18, 24), area.inflate(12, 8))  # solid: nothing behind shows through the charts
         minutes, seconds = divmod(int(f.duration), 60)
-        app.text(f"Flight of {f.started:%Y-%m-%d %H:%M}   {minutes}:{seconds:02d}   "
-                 f"battery {f.battery_start}% > {f.battery_end}%", (area.left, area.top), font=app.font)
+        app.text(t("Flight of {date}   {time}   battery {start}% > {end}%", date=f"{f.started:%Y-%m-%d %H:%M}",
+                   time=f"{minutes}:{seconds:02d}", start=f.battery_start, end=f.battery_end),
+                 (area.left, area.top), font=app.font)
         dist, dist_unit = app.distance_units()
         speed, speed_unit = app.speed_units()
-        charts = [(f"Height ({dist_unit})", [h / 100 * dist for h in f.heights], ACCENT),
-                  ("Battery (%)", f.batteries, GREEN),
-                  (f"Speed ({speed_unit})", [v / 10 * speed for v in f.speeds], YELLOW)]
+        charts = [(t("Height ({unit})", unit=dist_unit), [h / 100 * dist for h in f.heights], ACCENT),
+                  (t("Battery (%)"), f.batteries, GREEN),
+                  (t("Speed ({unit})", unit=speed_unit), [v / 10 * speed for v in f.speeds], YELLOW)]
         top, gap = area.top + 34, 14
         height = (area.bottom - top - gap * (len(charts) - 1)) // len(charts)
         for i, (title, values, colour) in enumerate(charts):
@@ -609,13 +619,14 @@ class Menu:
         if self.graph:
             if self.pending_delete == self.graph.path:
                 key = "Square" if self.device == "gamepad" else "Del"
-                return f"Press {key} again to delete this flight log"
-            return {"gamepad": "Circle: back to the list   Square: delete   L1 / R1: page",
-                    "mouse": "Click: back to the list"}.get(self.device, "Esc: back to the list   Del: delete   Tab: page")
+                return t("Press {key} again to delete this flight log", key=key)
+            return {"gamepad": t("Circle: back to the list   Square: delete   L1 / R1: page"),
+                    "mouse": t("Click: back to the list")}.get(self.device,
+                                                               t("Esc: back to the list   Del: delete   Tab: page"))
         if self.capture:
-            return "Esc: cancel" if self.capture[0] == "pad" else "Press the new key   Esc: cancel"
+            return t("Esc: cancel") if self.capture[0] == "pad" else t("Press the new key   Esc: cancel")
         if self.device == "gamepad":
-            return "D-pad: move / change   Cross: edit   Square: clear   L1 / R1: page   Circle: close"
+            return t("D-pad: move / change   Cross: edit   Square: clear   L1 / R1: page   Circle: close")
         if self.device == "mouse":
-            return "Click: change (left half / right-click goes back)   Wheel: scroll   Esc: close"
-        return "Up/Down: move   Left/Right: change   Enter: edit   Del: clear   Tab: page   Esc: close"
+            return t("Click: change (left half / right-click goes back)   Wheel: scroll   Esc: close")
+        return t("Up/Down: move   Left/Right: change   Enter: edit   Del: clear   Tab: page   Esc: close")

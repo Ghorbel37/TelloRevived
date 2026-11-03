@@ -40,6 +40,7 @@ Nothing needs installing. A few notes the first time:
 - **Minutes of flight left** in the top bar, measured from how fast your battery is dropping.
 - **Flight logs and graphs:** see each flight's height, battery and speed, and how your battery is ageing.
 - **Landing help** and **battery saving**: video only while flying, and auto-land at a battery level you choose.
+- **English, French, Spanish and German**, following your computer's language. [Adding another](docs/translations.md) takes one text file.
 
 ## Controls
 
@@ -86,6 +87,7 @@ More documentation:
 - [Running, building and releasing](docs/building.md)
 - [The minimal FFmpeg](docs/ffmpeg.md): how the releases are made smaller
 - [How the code is laid out](docs/development.md)
+- [Translations](docs/translations.md): how to add or fix a language
 
 ## Contributing
 

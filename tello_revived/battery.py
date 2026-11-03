@@ -2,6 +2,8 @@
 
 from collections import deque
 
+from tello_revived.i18n import t
+
 WINDOW = 120.0  # seconds of recent flight the rate is measured over
 MIN_DROP = 2  # percent the battery must have dropped before there's an estimate
 MIN_SPAN = 20.0  # seconds, likewise
@@ -33,4 +35,4 @@ class FlightTime:
 
 def describe(minutes):
     """Short text for the top bar: '~4 min', '<1 min'."""
-    return "<1 min" if minutes < 1 else f"~{minutes:.0f} min"
+    return t("<1 min") if minutes < 1 else t("~{minutes} min", minutes=f"{minutes:.0f}")

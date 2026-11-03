@@ -8,6 +8,8 @@ import csv
 import datetime
 import time
 
+from tello_revived.i18n import t
+
 # (column, telemetry field) - the Tello's names are short, the columns say what they are
 FIELDS = [
     ("height_cm", "h"), ("ground_distance_cm", "tof"), ("barometer_m", "baro"), ("battery_pct", "bat"),
@@ -43,7 +45,7 @@ class FlightLog:
             self.ground_since = self.ground_since or now
             if now - self.ground_since > LANDED_FOR:
                 self.close()
-                tello.log(f"Saved {self.path.name}")
+                tello.log(t("Saved {file}", file=self.path.name))
 
     def _open(self, app, now):
         folder = app.media_dir()
@@ -53,7 +55,7 @@ class FlightLog:
             self.file = open(self.path, "w", newline="", encoding="utf-8")
         except OSError as e:
             app.settings["files"]["flight_log"] = False  # don't retry every frame; the setting isn't saved
-            return app.tello.log(f"Can't save the flight log: {e.strerror or e}")
+            return app.tello.log(t("Can't save the flight log: {error}", error=e.strerror or e))
         self.writer = csv.writer(self.file)
         self.writer.writerow(COLUMNS)
         self.start = self.last_event = now

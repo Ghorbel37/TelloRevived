@@ -9,6 +9,7 @@ import pygame
 
 from tello_revived import battery, firewall, wifi
 from tello_revived.flight import HOT_TEMP
+from tello_revived.i18n import N_, t
 from tello_revived.labels import key_label, pad_label
 from tello_revived.settings import SPEED_NAMES
 
@@ -71,7 +72,7 @@ class HudDrawing:
         return rect
 
     def draw_hud(self, area):
-        t, st, now = self.tello, self.tello.state, time.monotonic()
+        drone, st, now = self.tello, self.tello.state, time.monotonic()
         sw, sh = self.screen.get_size()
         blink = int(now * 2) % 2 == 0
 
@@ -79,19 +80,19 @@ class HudDrawing:
         if hud["top_bar"]:
             self.draw_top_bar(blink, now)
 
-        if t.blocked and not t.connected:
+        if drone.blocked and not drone.connected:
             self.draw_firewall_help()
-        elif not t.connected:
+        elif not drone.connected:
             self.draw_connect_help()
         else:
             video_mode = self.settings["power"]["video"]
             if video_mode == "off":
-                self.text("VIDEO OFF (battery saver)", (sw // 2, sh // 2 - 80), (160, 160, 160), self.font, "center")
-            elif not t.want_video():
-                self.text("Video starts at takeoff", (sw // 2, sh // 2 - 80), (160, 160, 160),
+                self.text(t("VIDEO OFF (battery saver)"), (sw // 2, sh // 2 - 80), (160, 160, 160), self.font, "center")
+            elif not drone.want_video():
+                self.text(t("Video starts at takeoff"), (sw // 2, sh // 2 - 80), (160, 160, 160),
                           self.font, "center")
             elif now - self.video.frame_time > 2:
-                self.text("NO VIDEO", (sw // 2, sh // 2 - 80), (240, 200, 60), self.font_big, "center")
+                self.text(t("NO VIDEO"), (sw // 2, sh // 2 - 80), (240, 200, 60), self.font_big, "center")
             if hud["attitude"]:
                 self.draw_attitude(area.center, st)
             if hud["flight_data"]:
@@ -111,11 +112,11 @@ class HudDrawing:
                 hdg = int(st.get("yaw", 0)) % 360
                 self.text(f"HDG {hdg:03d}°", (sw // 2, 42), anchor="midtop")
             if st.get("bat", 100) <= self.settings["power"]["low_battery_warning"] and blink:
-                self.text("LOW BATTERY - LAND", (sw // 2, 80), (240, 70, 60), self.font_big, "midtop")
+                self.text(t("LOW BATTERY - LAND"), (sw // 2, 80), (240, 70, 60), self.font_big, "midtop")
             if hud["video_fps"] and self.video.fps:
                 label = f"{self.video.fps:.0f} fps"
                 if self.app_delay is not None and now - self.video.frame_time < 2:
-                    label += f" · app delay {self.app_delay * 1000:.0f} ms"
+                    label += " · " + t("app delay {ms} ms", ms=f"{self.app_delay * 1000:.0f}")
                 self.text(label, (sw - 10, 42), (160, 160, 160), self.font_small, "topright")
 
         bar = BAR_H if hud["hint_bar"] and not self.menu.is_open else 0
@@ -123,12 +124,12 @@ class HudDrawing:
             self.draw_stick((70, sh - 70 - bar), *self.stick_pair("left"))
             self.draw_stick((sw - 70, sh - 70 - bar), *self.stick_pair("right"))
 
-        if bar and t.connected and not t.flying and not self.landing:
+        if bar and drone.connected and not drone.flying and not self.landing:
             self.draw_takeoff_hint()
 
         if hud["messages"]:
             y = sh - 30 - bar
-            for ts, msg in reversed(list(t.log_lines)):
+            for ts, msg in reversed(list(drone.log_lines)):
                 age = now - ts
                 if age > 5:
                     continue
@@ -136,7 +137,7 @@ class HudDrawing:
                           self.font_small, "midbottom")
                 y -= 20
 
-        if self.land_failed and t.flying:
+        if self.land_failed and drone.flying:
             self.draw_land_failed()
 
         if self.menu.is_open:
@@ -162,7 +163,7 @@ class HudDrawing:
 
     def hint_items(self):
         """(mode, [(button, what, colour)]) for the bottom bar, most important first."""
-        t, keys, pad = self.tello, self.settings["keys"], self.settings["pad"]
+        drone, keys, pad = self.tello, self.settings["keys"], self.settings["pad"]
         k = lambda a: key_label(keys[a]) if keys[a] is not None else None
         p = lambda a: pad_label(pad[a]) if pad[a] else None
         on_pad = self.input_device() == "pad"
@@ -171,56 +172,57 @@ class HudDrawing:
         if on_pad:
             emergency = f"{p('emergency_1')} + {p('emergency_2')}" if pad["emergency_1"] and pad["emergency_2"] else None
             speed = p("speed")
-            help_items = [(p("menu"), "Help & settings", None)]
+            help_items = [(p("menu"), t("Help & settings"), None)]
         else:
             emergency = k("emergency")
             speed = " ".join(filter(None, (k("speed_slow"), k("speed_normal"), k("speed_fast")))) or k("speed")
-            help_items = [(k("help"), "Help", None), (k("settings"), "Settings", None)]
+            help_items = [(k("help"), t("Help"), None), (k("settings"), t("Settings"), None)]
 
-        if t.flying and (flip := self.flip_held()):
+        if drone.flying and (flip := self.flip_held()):
             if flip == "pad":
-                dirs = [("↑", "forward"), ("↓", "back"), ("←", "left"), ("→", "right")]
-                items = [(f"D-pad {arrow}", f"Flip {what}", amber) for arrow, what in dirs]
+                dirs = [("↑", N_("forward")), ("↓", N_("back")), ("←", N_("left")), ("→", N_("right"))]
+                items = [(f"D-pad {arrow}", t("Flip {direction}", direction=t(what)), amber) for arrow, what in dirs]
             else:
-                items = [(k(a), f"Flip {a}", amber) for a in ("forward", "back", "left", "right")]
-            bat = t.state.get("bat", 0)
-            items.append(("!", "needs > 50% battery" if bat > 50 else f"battery {bat:.0f}% - too low to flip", red))
-            mode = ("FLIP", amber)
-        elif t.flying or self.taking_off:
+                items = [(k(a), t("Flip {direction}", direction=t(a)), amber) for a in ("forward", "back", "left", "right")]
+            bat = drone.state.get("bat", 0)
+            items.append(("!", t("needs > 50% battery") if bat > 50 else
+                          t("battery {battery}% - too low to flip", battery=f"{bat:.0f}"), red))
+            mode = (t("FLIP"), amber)
+        elif drone.flying or self.taking_off:
             items = []
             if self.landing or self.land_failed:
-                items.append((emergency, "EMERGENCY stop", red))
-            items += [(b("land"), "Land", None),
-                      (speed, f"Speed: {SPEED_NAMES[self.speed_idx]}", None),
+                items.append((emergency, t("EMERGENCY stop"), red))
+            items += [(b("land"), t("Land"), None),
+                      (speed, t("Speed: {speed}", speed=t(SPEED_NAMES[self.speed_idx])), None),
                       *self.camera_items(b),
-                      (b("flip"), "Hold: flips", None)]
+                      (b("flip"), t("Hold: flips"), None)]
             if self.settings["drone"]["model"] in ("edu", "tt"):
-                items.append((b("camera"), "Front camera" if self.camera_down else "Down camera", None))
+                items.append((b("camera"), t("Front camera") if self.camera_down else t("Down camera"), None))
             items += help_items
-            mode = (("LANDING", amber) if self.landing else ("TAKING OFF", amber) if not t.flying
-                    else ("FLYING", (90, 220, 120)))
-        elif t.connected:
-            items = [(b("takeoff"), "Take off", None), *self.camera_items(b)] + help_items
-            mode = ("READY", (120, 190, 255))
-        elif t.blocked:
+            mode = ((t("LANDING"), amber) if self.landing else (t("TAKING OFF"), amber) if not drone.flying
+                    else (t("FLYING"), (90, 220, 120)))
+        elif drone.connected:
+            items = [(b("takeoff"), t("Take off"), None), *self.camera_items(b)] + help_items
+            mode = (t("READY"), (120, 190, 255))
+        elif drone.blocked:
             allow = ("Square" if on_pad else "F") if firewall.can_allow() else None
-            items = [(allow, "Allow through firewall", None)] + help_items + [(k("quit"), "Quit", None)]
-            mode = ("BLOCKED", red)
+            items = [(allow, t("Allow through firewall"), None)] + help_items + [(k("quit"), t("Quit"), None)]
+            mode = (t("BLOCKED"), red)
         else:
-            items = help_items + [(k("quit"), "Quit", None)]
+            items = help_items + [(k("quit"), t("Quit"), None)]
             if self.drone_networks:
-                items.insert(0, ("Square" if on_pad else "C", f"Connect to {self.drone_networks[0]}", None))
-            mode = ("OFFLINE", (150, 150, 150))
+                items.insert(0, ("Square" if on_pad else "C", t("Connect to {network}", network=self.drone_networks[0]), None))
+            mode = (t("OFFLINE"), (150, 150, 150))
         return mode, [(btn, what, col) for btn, what, col in items if btn and btn != "-"]
 
     def camera_items(self, b):
         """Photo / record buttons, only while there is a picture (stop is always offered)."""
         live = self.camera_live()
-        items = [(b("photo"), "Photo", None)] if live else []
+        items = [(b("photo"), t("Photo"), None)] if live else []
         if self.video.recording:
-            items.append((b("record"), "Stop recording", None))
+            items.append((b("record"), t("Stop recording"), None))
         elif live:
-            items.append((b("record"), "Record", None))
+            items.append((b("record"), t("Record"), None))
         return items
 
     def draw_hint_bar(self):
@@ -252,20 +254,20 @@ class HudDrawing:
         if btn == "-":
             return
         if self.taking_off:
-            self.text("Taking off...", (sw // 2, sh // 2 + 110), (120, 255, 160), self.font_big, "center")
+            self.text(t("Taking off..."), (sw // 2, sh // 2 + 110), (120, 255, 160), self.font_big, "center")
             return
         if problem := self.takeoff_problem():
-            rect = self.text("Can't take off", (sw // 2, sh // 2 + 110), (240, 70, 60), self.font_big, "center")
+            rect = self.text(t("Can't take off"), (sw // 2, sh // 2 + 110), (240, 70, 60), self.font_big, "center")
             self.text(problem[0].upper() + problem[1:], (sw // 2, rect.bottom + 6), (235, 235, 235),
                       self.font_small, "midtop")
             return
-        rect = self.text(f"Press {btn} to take off", (sw // 2, sh // 2 + 110), (120, 255, 160),
+        rect = self.text(t("Press {button} to take off", button=btn), (sw // 2, sh // 2 + 110), (120, 255, 160),
                          self.font_big, "center")
         if warning := self.heat_warning():
             self.text(warning[0].upper() + warning[1:], (sw // 2, rect.bottom + 6), (240, 200, 60),
                       self.font_small, "midtop")
         else:
-            self.text("Check there is space around and above the drone", (sw // 2, rect.bottom + 6),
+            self.text(t("Check there is space around and above the drone"), (sw // 2, rect.bottom + 6),
                       (170, 170, 170), self.font_small, "midtop")
 
     def draw_connect_help(self):
@@ -273,14 +275,14 @@ class HudDrawing:
         sw, sh = self.screen.get_size()
         self.wifi_button = None
         if self.current_wifi and wifi.DRONE_NETWORK.match(self.current_wifi):
-            title = f"On {self.current_wifi} - waiting for the drone to answer..."
+            title = t("On {network} - waiting for the drone to answer...", network=self.current_wifi)
         else:
-            title = "Connect this computer's Wi-Fi to TELLO-XXXXXX and power on the drone"
+            title = t("Connect this computer's Wi-Fi to TELLO-XXXXXX and power on the drone")
         self.text(title, (sw // 2, sh // 2), (220, 220, 220), anchor="center")
         y = sh // 2 + 30
         if self.drone_networks:
-            keys = "C or Square" if self.pad.name else "C"
-            label = self.font.render(f"Connect to {self.drone_networks[0]} ({keys})", True, (15, 18, 24))
+            keys = t("{key} or {button}", key="C", button="Square") if self.pad.name else "C"
+            label = self.font.render(f"{t('Connect to {network}', network=self.drone_networks[0])} ({keys})", True, (15, 18, 24))
             rect = label.get_rect(midtop=(sw // 2, y)).inflate(28, 12)
             pygame.draw.rect(self.screen, (120, 190, 255), rect, border_radius=6)
             self.screen.blit(label, label.get_rect(center=rect.center))
@@ -289,20 +291,20 @@ class HudDrawing:
         if self.wifi_status:
             self.text(self.wifi_status, (sw // 2, y), (240, 200, 60), self.font_small, "midtop")
             y += 24
-        self.text(f"Press {self.help_keys()} for controls", (sw // 2, y), (160, 160, 160), self.font_small, "midtop")
+        self.text(t("Press {keys} for controls", keys=self.help_keys()), (sw // 2, y), (160, 160, 160), self.font_small, "midtop")
 
     def draw_update_question(self):
         """First run: a full-screen question that has to be answered (never shown while flying)."""
         sw, sh = self.screen.get_size()
         self.screen.fill((12, 14, 18))  # a screen of its own: nothing behind it shows
         cy = sh // 2
-        self.text("Check for updates when the app opens?", (sw // 2, cy - 90), (255, 255, 255), self.font_big, "center")
-        for i, line in enumerate(("Tello Revived can ask GitHub for the latest version each time it starts.",
-                                  "Nothing else is sent. You can change this later in Settings > About.")):
+        self.text(t("Check for updates when the app opens?"), (sw // 2, cy - 90), (255, 255, 255), self.font_big, "center")
+        for i, line in enumerate((t("Tello Revived can ask GitHub for the latest version each time it starts."),
+                                  t("Nothing else is sent. You can change this later in Settings > About."))):
             self.text(line, (sw // 2, cy - 40 + 24 * i), (190, 190, 190), self.font_small, "center")
         on_pad = self.input_device() == "pad"
-        buttons = [("yes", self.font_big.render(f"Yes ({'Cross' if on_pad else 'Y'})", True, (15, 18, 24))),
-                   ("no", self.font_big.render(f"No ({'Circle' if on_pad else 'N'})", True, (15, 18, 24)))]
+        buttons = [("yes", self.font_big.render(f"{t('Yes')} ({'Cross' if on_pad else 'Y'})", True, (15, 18, 24))),
+                   ("no", self.font_big.render(f"{t('No')} ({'Circle' if on_pad else 'N'})", True, (15, 18, 24)))]
         gap, pad = 40, (32, 16)
         x = sw // 2 - (sum(img.get_width() + pad[0] for _, img in buttons) + gap) // 2
         for answer, img in buttons:
@@ -312,7 +314,7 @@ class HudDrawing:
             self.screen.blit(img, img.get_rect(center=rect.center))
             self.update_buttons[answer] = rect
             x = rect.right + gap
-        self.text("Choose one to continue", (sw // 2, cy + 110), (130, 130, 130), self.font_small, "center")
+        self.text(t("Choose one to continue"), (sw // 2, cy + 110), (130, 130, 130), self.font_small, "center")
 
     def draw_firewall_help(self):
         """The drone answers commands but its telemetry and video don't get through."""
@@ -324,49 +326,50 @@ class HudDrawing:
                 app = getattr(sys, "_base_executable", sys.executable)
                 if len(app) > 70:
                     app = "..." + app[-67:]
-            how = ["Open Windows Security > Firewall & network protection >",
-                   "Allow an app through firewall, and tick Private and Public for:", app]
+            how = [t("Open Windows Security > Firewall & network protection >"),
+                   t("Allow an app through firewall, and tick Private and Public for:"), app]
         elif sys.platform == "darwin":
-            how = ["Open System Settings > Network > Firewall > Options,", "and allow incoming connections for Tello Revived."]
+            how = [t("Open System Settings > Network > Firewall > Options,"), t("and allow incoming connections for Tello Revived.")]
         else:
-            how = ["Allow incoming UDP on ports 8890 and 11111, for example:", "sudo ufw allow 8890,11111/udp"]
-        lines = ["The drone answers, but your firewall blocks its telemetry and video.", "", *how, "",
-                 "This message goes away by itself once it's allowed."]
+            how = [t("Allow incoming UDP on ports 8890 and 11111, for example:"), "sudo ufw allow 8890,11111/udp"]
+        lines = [t("The drone answers, but your firewall blocks its telemetry and video."), "", *how, "",
+                 t("This message goes away by itself once it's allowed.")]
         button = firewall.can_allow()
         box = pygame.Rect(0, 0, min(sw - 20, 680), 70 + 24 * len(lines) + (80 if button else 0))
         box.center = (sw // 2, sh // 2)
         self.panel(box, 210)
         pygame.draw.rect(self.screen, (240, 70, 60), box, 3)
-        self.text("BLOCKED BY FIREWALL", (box.centerx, box.top + 12), (240, 70, 60), self.font_big, "midtop")
+        self.text(t("BLOCKED BY FIREWALL"), (box.centerx, box.top + 12), (240, 70, 60), self.font_big, "midtop")
         for i, line in enumerate(lines):
             self.text(line, (box.centerx, box.top + 56 + 24 * i), font=self.font_small, anchor="midtop")
         self.firewall_button = None
         if button:
-            keys = "F or Square" if self.pad.name else "F"
-            label = self.font.render(f"Allow it now ({keys})", True, (15, 18, 24))
+            keys = t("{key} or {button}", key="F", button="Square") if self.pad.name else "F"
+            label = self.font.render(f"{t('Allow it now')} ({keys})", True, (15, 18, 24))
             rect = label.get_rect(midtop=(box.centerx, box.bottom - 76)).inflate(28, 12)
             pygame.draw.rect(self.screen, (120, 190, 255), rect, border_radius=6)
             self.screen.blit(label, label.get_rect(center=rect.center))
             self.firewall_button = rect
-            note = self.firewall_status or "Asks for administrator permission, then allows only the drone's ports"
+            note = self.firewall_status or t("Asks for administrator permission, then allows only the drone's ports")
             self.text(note, (box.centerx, rect.bottom + 8), (170, 170, 170), self.font_small, "midtop")
 
     def draw_land_failed(self):
         sw, sh = self.screen.get_size()
         keys, pad = self.settings["keys"], self.settings["pad"]
-        stick = "right" if self.settings["flight"]["move_stick"] == "left" else "left"
+        stick = t("right stick") if self.settings["flight"]["move_stick"] == "left" else t("left stick")
         emergency = key_label(keys["emergency"])
         if self.pad.name:
-            emergency += f" or {pad_label(pad['emergency_1'])} + {pad_label(pad['emergency_2'])}"
-        lines = [f"Landing didn't work {self.land_fails} times.",
-                 f"Fly it down slowly yourself ({key_label(keys['down'])} / {stick} stick down),",
-                 "then when it's just above the ground (under ~20 cm)",
-                 f"stop the motors with EMERGENCY: {emergency}"]
+            emergency = t("{key} or {button}", key=emergency,
+                          button=f"{pad_label(pad['emergency_1'])} + {pad_label(pad['emergency_2'])}")
+        lines = [t("Landing didn't work {count} times.", count=self.land_fails),
+                 t("Fly it down slowly yourself ({key} / {stick} down),", key=key_label(keys["down"]), stick=stick),
+                 t("then when it's just above the ground (under ~20 cm)"),
+                 t("stop the motors with EMERGENCY: {keys}", keys=emergency)]
         box = pygame.Rect(0, 0, min(sw - 20, 640), 70 + 24 * len(lines))
         box.midtop = (sw // 2, 200)  # below the flight data panel
         self.panel(box, 200)
         pygame.draw.rect(self.screen, (240, 70, 60), box, 3)
-        self.text("LANDING FAILED", (box.centerx, box.top + 12), (240, 70, 60), self.font_big, "midtop")
+        self.text(t("LANDING FAILED"), (box.centerx, box.top + 12), (240, 70, 60), self.font_big, "midtop")
         for i, line in enumerate(lines):
             self.text(line, (box.centerx, box.top + 56 + 24 * i), font=self.font_small, anchor="midtop")
 
@@ -378,14 +381,14 @@ class HudDrawing:
     def help_keys(self):
         k = key_label(self.settings["keys"]["help"])
         menu = self.settings["pad"]["menu"]
-        return f"{k} or {pad_label(menu)}" if self.pad.name and menu else k
+        return t("{key} or {button}", key=k, button=pad_label(menu)) if self.pad.name and menu else k
 
     def draw_top_bar(self, blink, now):
-        t, st = self.tello, self.tello.state
+        drone, st = self.tello, self.tello.state
         sw = self.screen.get_width()
         self.panel(pygame.Rect(0, 0, sw, 34))
         x = 10
-        if t.connected:
+        if drone.connected:
             x = self.text("● LINK", (x, 7), (90, 220, 120)).right + 18
             bat = int(st.get("bat", 0))
             low = self.settings["power"]["low_battery_warning"]
@@ -394,21 +397,21 @@ class HudDrawing:
             if (minutes := self.flight_minutes_left()) is not None:
                 label += f" {battery.describe(minutes)}"
             x = self.text(label, (x, 7), col).right + 18
-            if t.wifi is not None:
-                col = (90, 220, 120) if t.wifi > 60 else (240, 200, 60) if t.wifi > 30 else (240, 70, 60)
-                x = self.text(f"WIFI {t.wifi}", (x, 7), col).right + 18
+            if drone.wifi is not None:
+                col = (90, 220, 120) if drone.wifi > 60 else (240, 200, 60) if drone.wifi > 30 else (240, 70, 60)
+                x = self.text(f"WIFI {drone.wifi}", (x, 7), col).right + 18
             tm = int(st.get("time", 0))
             x = self.text(f"FLT {tm // 60}:{tm % 60:02d}", (x, 7)).right + 18
             temp = (st.get("templ", 0) + st.get("temph", 0)) / 2
             self.text(f"{temp:.0f}°C", (x, 7), (240, 70, 60) if temp > HOT_TEMP else (235, 235, 235))
-        elif t.blocked:
-            self.text("● BLOCKED BY FIREWALL" if blink else "○ BLOCKED BY FIREWALL", (x, 7), (240, 70, 60))
+        elif drone.blocked:
+            self.text(("● " if blink else "○ ") + t("BLOCKED BY FIREWALL"), (x, 7), (240, 70, 60))
         else:
-            self.text("● SEARCHING FOR TELLO" if blink else "○ SEARCHING FOR TELLO", (x, 7), (240, 200, 60))
+            self.text(("● " if blink else "○ ") + t("SEARCHING FOR TELLO"), (x, 7), (240, 200, 60))
         right = sw - 10
-        right = self.text(SPEED_NAMES[self.speed_idx].upper(), (right, 7), (120, 190, 255),
+        right = self.text(t(SPEED_NAMES[self.speed_idx]).upper(), (right, 7), (120, 190, 255),
                           anchor="topright").left - 18
-        right = self.text(self.pad.name or "keyboard", (right, 7), (180, 180, 180), self.font_small,
+        right = self.text(self.pad.name or t("keyboard"), (right, 7), (180, 180, 180), self.font_small,
                           "topright").left - 18
         if self.video.recording:
             secs = int(now - self.video.rec_start)

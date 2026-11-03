@@ -1,9 +1,11 @@
 """Render the README screenshots with a simulated camera image and telemetry (no drone needed).
 
     uv run python tools/make_screenshots.py
+    uv run python tools/make_screenshots.py fr <folder>    in another language, to check a translation
 
 Uses default settings (your config.json is not read or changed) and writes docs/screenshots/*.png.
 """
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -12,11 +14,11 @@ import numpy as np
 import pygame
 from pygame._sdl2 import controller as sdl_controller
 
-from tello_revived import drone, settings
+from tello_revived import drone, i18n, settings
 from tello_revived.app import App
 
 ROOT = Path(__file__).resolve().parent.parent
-out = ROOT / "docs" / "screenshots"
+language, out = (sys.argv[1], Path(sys.argv[2])) if len(sys.argv) > 2 else ("en", ROOT / "docs" / "screenshots")
 out.mkdir(parents=True, exist_ok=True)
 settings.Settings.__init__.__defaults__ = (Path(tempfile.mkdtemp()) / "config.json",)  # leave yours alone
 drone.CMD_PORT, drone.STATE_PORT = 18889, 18890  # don't clash with a running app
@@ -47,6 +49,7 @@ def landscape(w=960, h=720):
 
 pygame.init(); sdl_controller.init()
 app = App()
+i18n.set_language(language)  # the README's screenshots are in English
 app.media_dir = lambda: Path("media")  # don't show this computer's folders
 frame = landscape()
 app.video.frame = ((960, 720), 960 * 3, frame.tobytes()); app.video.frame_id = 1
@@ -90,7 +93,7 @@ def keyboard():
     app.last_input = "keys"
 shot("flight_keyboard", keyboard)
 app.last_input = "pad"
-for tab in ("Help", "Keyboard", "Gamepad", "Flight", "Video & Power"):
+for tab in ("Help", "Keyboard", "Gamepad", "Flight", "Video & Power") + (("HUD", "About") if language != "en" else ()):
     app.menu.open(tab)
     if tab == "Keyboard":
         app.menu.sel = 10

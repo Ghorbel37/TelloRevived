@@ -12,9 +12,11 @@
 | `tello_revived/settings.py` | Defaults, `config.json` loading and saving, the help table |
 | `tello_revived/labels.py` | Key names (for the keyboard layout in use) and button names |
 | `tello_revived/paths.py` | Where settings, media and assets are |
+| `tello_revived/i18n.py` | Translations: `t()`, the language files in `locales/` ([translations.md](translations.md)) |
 | `tello_revived/cli.py` | Command line: `--joytest`, `--selftest`, `--version` |
 | `assets/make_logo.py` | Draws the logo, the window icon and the app icons (`.ico`, `.icns`) |
 | `tools/make_screenshots.py` | Renders the README screenshots without a drone |
+| `tools/check_translations.py` | Compares the language files with the text in the code |
 | `tools/build.py` | Builds the standalone app ([building.md](building.md)) |
 | `tools/build_ffmpeg.sh` | Builds the minimal FFmpeg ([ffmpeg.md](ffmpeg.md)) |
 | `.github/workflows/build.yml` | Builds, tests and releases all versions on GitHub |

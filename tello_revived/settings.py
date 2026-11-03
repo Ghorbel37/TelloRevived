@@ -5,10 +5,11 @@ import json
 
 import pygame
 
+from tello_revived.i18n import N_, t
 from tello_revived.labels import key_label, pad_label
 from tello_revived.paths import CONFIG_PATH
 
-SPEED_NAMES = ["slow", "normal", "fast"]
+SPEED_NAMES = [N_("slow"), N_("normal"), N_("fast")]
 
 # Keyboard bindings are scancodes (physical key positions), so they work on any layout.
 DEFAULTS = {
@@ -58,10 +59,11 @@ DEFAULTS = {
     },
     "app": {
         "check_updates": None,  # ask GitHub at start for a newer release; None = ask the user first
+        "language": "auto",  # a file in tello_revived/locales, "en", or "auto" = the computer's language
     },
 }
 
-DRONE_MODELS = [("tello", "Tello"), ("edu", "Tello EDU"), ("tt", "RoboMaster TT")]
+DRONE_MODELS = [("tello", N_("Tello")), ("edu", N_("Tello EDU")), ("tt", N_("RoboMaster TT"))]
 
 
 def stream_settings_supported(settings):
@@ -70,22 +72,22 @@ def stream_settings_supported(settings):
 
 
 KEY_ACTIONS = [
-    ("forward", "Move forward"), ("back", "Move back"), ("left", "Move left"), ("right", "Move right"),
-    ("up", "Climb"), ("down", "Descend"), ("turn_left", "Turn left"), ("turn_right", "Turn right"),
-    ("precision", "Precision (hold)"), ("flip", "Flip (hold + move key)"),
-    ("takeoff", "Take off"), ("land", "Land"), ("emergency", "EMERGENCY motor stop"),
-    ("photo", "Photo"), ("record", "Start / stop recording"), ("speed", "Cycle speed mode"),
-    ("speed_slow", "Speed: slow"), ("speed_normal", "Speed: normal"), ("speed_fast", "Speed: fast"),
-    ("help", "Help"), ("settings", "Settings"), ("fullscreen", "Fullscreen"), ("quit", "Quit"),
-    ("camera", "Front / down camera (EDU, TT)"),
+    ("forward", N_("Move forward")), ("back", N_("Move back")), ("left", N_("Move left")), ("right", N_("Move right")),
+    ("up", N_("Climb")), ("down", N_("Descend")), ("turn_left", N_("Turn left")), ("turn_right", N_("Turn right")),
+    ("precision", N_("Precision (hold)")), ("flip", N_("Flip (hold + move key)")),
+    ("takeoff", N_("Take off")), ("land", N_("Land")), ("emergency", N_("EMERGENCY motor stop")),
+    ("photo", N_("Photo")), ("record", N_("Start / stop recording")), ("speed", N_("Cycle speed mode")),
+    ("speed_slow", N_("Speed: slow")), ("speed_normal", N_("Speed: normal")), ("speed_fast", N_("Speed: fast")),
+    ("help", N_("Help")), ("settings", N_("Settings")), ("fullscreen", N_("Fullscreen")), ("quit", N_("Quit")),
+    ("camera", N_("Front / down camera (EDU, TT)")),
 ]
 
 PAD_ACTIONS = [
-    ("takeoff", "Take off"), ("land", "Land"), ("speed", "Cycle speed mode"),
-    ("photo", "Photo"), ("record", "Start / stop recording"),
-    ("flip", "Flip (hold + D-pad)"), ("precision", "Precision (hold)"),
-    ("menu", "Help / settings"), ("camera", "Front / down camera (EDU, TT)"),
-    ("emergency_1", "EMERGENCY button 1"), ("emergency_2", "EMERGENCY button 2 (press both)"),
+    ("takeoff", N_("Take off")), ("land", N_("Land")), ("speed", N_("Cycle speed mode")),
+    ("photo", N_("Photo")), ("record", N_("Start / stop recording")),
+    ("flip", N_("Flip (hold + D-pad)")), ("precision", N_("Precision (hold)")),
+    ("menu", N_("Help / settings")), ("camera", N_("Front / down camera (EDU, TT)")),
+    ("emergency_1", N_("EMERGENCY button 1")), ("emergency_2", N_("EMERGENCY button 2 (press both)")),
 ]
 
 class Settings:
@@ -135,23 +137,24 @@ def help_rows(settings):
     """(what, keyboard, gamepad) rows describing the current bindings."""
     k = {a: key_label(s) for a, s in settings["keys"].items()}
     p = {a: pad_label(b) for a, b in settings["pad"].items()}
-    move = settings["flight"]["move_stick"].title()
-    other = "Right" if move == "Left" else "Left"
+    stick = {"left": t("Left stick"), "right": t("Right stick")}
+    move = settings["flight"]["move_stick"]
+    other = stick["right" if move == "left" else "left"]
     return [
-        ("Forward / back / sideways", f"{k['forward']} {k['left']} {k['back']} {k['right']}", f"{move} stick"),
-        ("Climb / descend", f"{k['up']} / {k['down']}", f"{other} stick up / down"),
-        ("Turn", f"{k['turn_left']} / {k['turn_right']}", f"{other} stick left / right"),
-        ("Precision (hold)", k["precision"], p["precision"]),
-        ("Take off", k["takeoff"], p["takeoff"]),
-        ("Land", k["land"], p["land"]),
-        ("Speed mode", f"{k['speed_slow']} {k['speed_normal']} {k['speed_fast']}"
-                       + (f" / {k['speed']}" if settings["keys"]["speed"] else ""), p["speed"]),
-        ("Photo", k["photo"], p["photo"]),
-        ("Start / stop recording", k["record"], p["record"]),
-        ("Flip", f"{k['flip']} + move key", f"{p['flip']} + D-pad"),
-        ("EMERGENCY motor stop", k["emergency"], f"{p['emergency_1']} + {p['emergency_2']}"),
-        ("Help / settings", f"{k['help']} / {k['settings']}", p["menu"]),
-        ("Front / down camera (EDU, TT)", k["camera"], p["camera"]),
-        ("Fullscreen", k["fullscreen"], "-"),
-        ("Quit (lands first)", k["quit"], "-"),
+        (N_("Forward / back / sideways"), f"{k['forward']} {k['left']} {k['back']} {k['right']}", stick[move]),
+        (N_("Climb / descend"), f"{k['up']} / {k['down']}", t("{stick} up / down", stick=other)),
+        (N_("Turn"), f"{k['turn_left']} / {k['turn_right']}", t("{stick} left / right", stick=other)),
+        (N_("Precision (hold)"), k["precision"], p["precision"]),
+        (N_("Take off"), k["takeoff"], p["takeoff"]),
+        (N_("Land"), k["land"], p["land"]),
+        (N_("Speed mode"), f"{k['speed_slow']} {k['speed_normal']} {k['speed_fast']}"
+                           + (f" / {k['speed']}" if settings["keys"]["speed"] else ""), p["speed"]),
+        (N_("Photo"), k["photo"], p["photo"]),
+        (N_("Start / stop recording"), k["record"], p["record"]),
+        (N_("Flip"), t("{key} + move key", key=k["flip"]), t("{button} + D-pad", button=p["flip"])),
+        (N_("EMERGENCY motor stop"), k["emergency"], f"{p['emergency_1']} + {p['emergency_2']}"),
+        (N_("Help / settings"), f"{k['help']} / {k['settings']}", p["menu"]),
+        (N_("Front / down camera (EDU, TT)"), k["camera"], p["camera"]),
+        (N_("Fullscreen"), k["fullscreen"], "-"),
+        (N_("Quit (lands first)"), k["quit"], "-"),
     ]

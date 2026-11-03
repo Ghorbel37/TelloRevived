@@ -14,10 +14,11 @@ from tello_revived.flights import Flights
 from tello_revived.flight import FlightActions
 from tello_revived.gamepad import Gamepad, shape
 from tello_revived.hud import MONO, UNITS, HudDrawing
+from tello_revived.i18n import t
 from tello_revived.labels import key_label
 from tello_revived.menu import Menu
 from tello_revived.sounds import Sounds
-from tello_revived import VERSION, desktop, firewall, folder_picker, updates, wifi
+from tello_revived import VERSION, desktop, firewall, folder_picker, i18n, updates, wifi
 from tello_revived.paths import ICON_PATH, MEDIA_DIR
 from tello_revived.settings import SPEED_NAMES, Settings
 from tello_revived.video import Video
@@ -43,6 +44,7 @@ class App(FlightActions, HudDrawing):
         self.screen = pygame.display.set_mode(self.windowed_size, pygame.RESIZABLE)
         self.fullscreen = False
         self.settings = Settings()
+        i18n.set_language(self.settings["app"]["language"])
         self.tello = Tello(self.settings)
         self.video = Video(self.tello.log)
         self.pad = Gamepad()
@@ -71,10 +73,12 @@ class App(FlightActions, HudDrawing):
         self.firewall_alerted = False
         self.firewall_button = None  # where the HUD drew "Allow it now", for mouse clicks
         self.firewall_status = None  # what happened after pressing it
+        self.firewall_asking = False
         self.drone_networks = []  # TELLO-... networks in range, while the drone isn't connected
         self.current_wifi = None  # the network this computer is on
         self.wifi_button = None
         self.wifi_status = None
+        self.wifi_connecting = False
         self.drone_wifi = None  # the network the drone answered on, to rejoin if the computer drops it
         self.drone_seen = 0.0  # when the drone was last connected
         self.lost_while_flying = False  # whether it was in the air the last time it answered
@@ -82,7 +86,8 @@ class App(FlightActions, HudDrawing):
         if wifi.available():
             threading.Thread(target=self._watch_wifi, daemon=True).start()
         self.new_release = None  # (tag, url) of a newer release, once found
-        self.update_state = "Not checked"
+        self.update_state = t("Not checked")
+        self.checking_updates = False
         self.ask_about_updates = self.settings["app"]["check_updates"] is None  # first run: ask
         self.update_buttons = {}  # "yes"/"no" -> where the question's buttons are drawn
         if self.settings["app"]["check_updates"]:
@@ -99,7 +104,7 @@ class App(FlightActions, HudDrawing):
 
     def cycle_speed(self, idx=None):
         self.speed_idx = (self.speed_idx + 1) % len(SPEED_NAMES) if idx is None else idx
-        self.tello.log(f"Speed: {SPEED_NAMES[self.speed_idx].upper()}")
+        self.tello.log(t("Speed: {speed}", speed=t(SPEED_NAMES[self.speed_idx]).upper()))
 
     def toggle_help(self):
         self.menu.toggle("Help")
@@ -108,6 +113,8 @@ class App(FlightActions, HudDrawing):
         self.menu.toggle("Keyboard")
 
     def on_setting_changed(self, section, key):
+        if section == "app" and key == "language":
+            i18n.set_language(self.settings["app"]["language"])
         if section == "hud":
             self.sounds.enable(self.settings["hud"]["sound_alerts"])
         stream_keys = (None, "resolution", "stream_fps", "bitrate")
@@ -121,14 +128,14 @@ class App(FlightActions, HudDrawing):
     def camera_off_reason(self):
         mode = self.settings["power"]["video"]
         if mode == "off":
-            return "Camera is off (Settings > Video & Power)"
+            return t("Camera is off (Settings > Video & Power)")
         if not self.tello.want_video():
-            return "Camera starts at takeoff"
-        return "No video from the drone"
+            return t("Camera starts at takeoff")
+        return t("No video from the drone")
 
     def photo(self):
         if not self.camera_live():
-            return self.tello.log(f"No photo: {self.camera_off_reason()}")
+            return self.tello.log(t("No photo: {reason}", reason=self.camera_off_reason()))
         folder = self.media_dir()
         path = folder / f"photo_{stamp()}.png"
         n = 2
@@ -137,17 +144,17 @@ class App(FlightActions, HudDrawing):
             n += 1
         size, pitch, rgb = self.video.snapshot()  # full size, not the window-sized picture
         pygame.image.save(pygame.image.frombuffer(rgb, size, "RGB", pitch), str(path))
-        self.tello.log(f"Saved {path.name}")
+        self.tello.log(t("Saved {file}", file=path.name))
 
     def toggle_record(self):
         if self.video.recording:
             self.video.stop_recording()
-            self.tello.log("Recording stopped - saving...")
+            self.tello.log(t("Recording stopped - saving..."))
         elif not self.camera_live():
-            self.tello.log(f"Not recording: {self.camera_off_reason()}")
+            self.tello.log(t("Not recording: {reason}", reason=self.camera_off_reason()))
         else:
             self.video.start_recording(self.media_dir() / f"video_{stamp()}.h264")
-            self.tello.log("Recording")
+            self.tello.log(t("Recording"))
 
     def media_dir(self):
         """Where photos and recordings go: the folder chosen in settings, or the default one."""
@@ -157,14 +164,14 @@ class App(FlightActions, HudDrawing):
     def choose_media_dir(self):
         """Ask for a new photos and videos folder with the system's folder dialog."""
         if not folder_picker.available():
-            return self.tello.log("No folder dialog on this system: set media_dir in config.json")
+            return self.tello.log(t("No folder dialog on this system: set media_dir in config.json"))
         if self.fullscreen:
             self.toggle_fullscreen()  # the dialog would open behind a fullscreen window
         # in a thread, so the drone keeps getting stick commands while the dialog is open
         threading.Thread(target=self._pick_media_dir, daemon=True).start()
 
     def _pick_media_dir(self):
-        chosen = folder_picker.pick_folder("Folder for Tello Revived photos and videos", self.media_dir())
+        chosen = folder_picker.pick_folder(t("Folder for Tello Revived photos and videos"), self.media_dir())
         if chosen:
             self.set_media_dir(chosen)
 
@@ -177,17 +184,17 @@ class App(FlightActions, HudDrawing):
             probe.write_bytes(b"")
             probe.unlink()
         except OSError as e:
-            return self.tello.log(f"Can't save to {path}: {e.strerror or e}")
+            return self.tello.log(t("Can't save to {folder}: {error}", folder=path, error=e.strerror or e))
         self.settings["files"]["media_dir"] = str(path) if folder else ""
         self.settings.save()
-        self.tello.log(f"Photos and videos now go to {path}")
+        self.tello.log(t("Photos and videos now go to {folder}", folder=path))
 
     def switch_camera(self):
         """Tello EDU / RoboMaster TT: switch the video between the front and the downward camera."""
         if self.settings["drone"]["model"] not in ("edu", "tt"):
-            return self.tello.log("Only the Tello EDU and RoboMaster TT have a downward camera (Flight > Drone model)")
+            return self.tello.log(t("Only the Tello EDU and RoboMaster TT have a downward camera (Flight > Drone model)"))
         if not self.tello.connected:
-            return self.tello.log("Not connected")
+            return self.tello.log(t("Not connected"))
         threading.Thread(target=self._switch_camera, args=(not self.camera_down,), daemon=True).start()
 
     def _switch_camera(self, down):
@@ -195,9 +202,9 @@ class App(FlightActions, HudDrawing):
         reply = self.tello.query(f"downvision {int(down)}", 2.0)
         if reply == "ok":
             self.camera_down = down
-            self.tello.log("Camera: down" if down else "Camera: front")
+            self.tello.log(t("Camera: down") if down else t("Camera: front"))
         else:
-            self.tello.log(f"The drone didn't switch cameras ({reply or 'no reply'}) - its firmware may be too old")
+            self.tello.log(t("The drone didn't switch cameras ({reply}) - its firmware may be too old", reply=reply or t("no reply")))
 
     def distance_units(self):
         """(factor from metres, name) for heights, from HUD > Units."""
@@ -217,30 +224,32 @@ class App(FlightActions, HudDrawing):
         """Linux: add Tello Revived to the applications menu, or remove it if it's there."""
         if desktop.installed():
             desktop.remove()
-            self.tello.log("Removed from the applications menu")
+            self.tello.log(t("Removed from the applications menu"))
         elif problem := desktop.add():
-            self.tello.log(f"Couldn't add to the applications menu: {problem}")
+            self.tello.log(t("Couldn't add to the applications menu: {problem}", problem=problem))
         else:
-            self.tello.log("Added to the applications menu")
+            self.tello.log(t("Added to the applications menu"))
 
     def check_for_updates(self):
         """Ask GitHub for the latest release, in the background (at start, or from About)."""
-        if self.update_state == "Checking for updates...":
+        if self.checking_updates:
             return
-        self.update_state = "Checking for updates..."
+        self.checking_updates = True
+        self.update_state = t("Checking for updates...")
         threading.Thread(target=self._check_updates, daemon=True).start()
 
     def _check_updates(self):
         latest = updates.latest_release()
+        self.checking_updates = False
         if not latest:
-            self.update_state = "Couldn't check for updates (offline?)"
+            self.update_state = t("Couldn't check for updates (offline?)")
         elif updates.is_newer(latest[0]):
             self.new_release = latest
-            self.update_state = f"{latest[0]} is available"
+            self.update_state = t("{version} is available", version=latest[0])
             if not self.tello.flying:  # never a message while flying; About shows it anyway
-                self.tello.log(f"Tello Revived {latest[0]} is available - see Settings > About")
+                self.tello.log(t("Tello Revived {version} is available - see Settings > About", version=latest[0]))
         else:
-            self.update_state = f"Up to date (v{VERSION})"
+            self.update_state = t("Up to date (v{version})", version=VERSION)
 
     def update_question_open(self):
         """The first-run question is on screen. Never while flying, so it can't lock the controls in the air."""
@@ -281,36 +290,39 @@ class App(FlightActions, HudDrawing):
                 and self.drone_wifi in seen
                 and self.current_wifi != self.drone_wifi and now - self.last_rejoin > 10):
             self.last_rejoin = now
-            self.tello.log(f"Wi-Fi moved away from {self.drone_wifi} - rejoining it")
+            self.tello.log(t("Wi-Fi moved away from {network} - rejoining it", network=self.drone_wifi))
             self._connect_wifi(self.drone_wifi)
 
     def connect_wifi(self):
         """Join the first drone network found (the system's tools do it; takes a few seconds)."""
-        if not self.drone_networks or (self.wifi_status or "").startswith("Connecting"):
+        if not self.drone_networks or self.wifi_connecting:
             return
         ssid = self.drone_networks[0]
-        self.wifi_status = f"Connecting to {ssid}..."
+        self.wifi_connecting = True
+        self.wifi_status = t("Connecting to {network}...", network=ssid)
         threading.Thread(target=self._connect_wifi, args=(ssid,), daemon=True).start()
 
     def _connect_wifi(self, ssid):
         problem = wifi.connect(ssid)
+        self.wifi_connecting = False
         if problem:
-            self.wifi_status = f"Couldn't connect to {ssid}: {problem}"
+            self.wifi_status = t("Couldn't connect to {network}: {problem}", network=ssid, problem=problem)
         else:
             self.wifi_status = None
             self.current_wifi = ssid
             self.drone_networks = []
-            self.tello.log(f"Connected to {ssid}")
+            self.tello.log(t("Connected to {network}", network=ssid))
 
     def allow_firewall(self):
         """Ask the system (with its admin prompt) to let the drone's telemetry and video in."""
         if not firewall.can_allow():
-            return self.tello.log("Can't change the firewall from here - see the steps on screen")
-        if self.firewall_status == "Waiting for your answer to the admin prompt...":
+            return self.tello.log(t("Can't change the firewall from here - see the steps on screen"))
+        if self.firewall_asking:
             return
         if self.fullscreen:
             self.toggle_fullscreen()  # the prompt would open behind a fullscreen window
-        self.firewall_status = "Waiting for your answer to the admin prompt..."
+        self.firewall_asking = True
+        self.firewall_status = t("Waiting for your answer to the admin prompt...")
         threading.Thread(target=self._allow_firewall, daemon=True).start()
 
     def _allow_firewall(self):
@@ -318,8 +330,9 @@ class App(FlightActions, HudDrawing):
             ok = firewall.allow()
         except OSError:
             ok = False
-        self.firewall_status = ("Allowed - waiting for the drone's telemetry..." if ok
-                                else "Not changed (cancelled or failed) - you can try again")
+        self.firewall_asking = False
+        self.firewall_status = (t("Allowed - waiting for the drone's telemetry...") if ok
+                                else t("Not changed (cancelled or failed) - you can try again"))
 
     def toggle_fullscreen(self):
         self.fullscreen = not self.fullscreen
@@ -398,7 +411,7 @@ class App(FlightActions, HudDrawing):
         if self.quit_after_land or not self.tello.flying or not self.settings["flight"]["land_on_quit"]:
             return False
         self.quit_after_land = True
-        self.tello.log(f"Landing before quit ({key_label(self.settings['keys']['quit'])} again to quit now)")
+        self.tello.log(t("Landing before quit ({key} again to quit now)", key=key_label(self.settings['keys']['quit'])))
         self.land()
         return True
 
@@ -445,7 +458,7 @@ class App(FlightActions, HudDrawing):
         pause_for_landing = self.landing and self.settings["flight"]["retry_landing"]
         if pause_for_landing and not idle:
             self.landing = False
-            self.tello.log("Landing cancelled by stick input")
+            self.tello.log(t("Landing cancelled by stick input"))
         if idle and (pause_for_landing or now < self.takeoff_until or now < self.flip_until):
             return  # don't let rc interrupt takeoff / landing / a flip
         if self.tello.connected:
@@ -464,7 +477,7 @@ class App(FlightActions, HudDrawing):
                     running = self.request_quit()
                 elif ev.type in (pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED):
                     self.pad.rescan()
-                    self.tello.log(f"Gamepad: {self.pad.name}" if self.pad.name else "Gamepad disconnected")
+                    self.tello.log(t("Gamepad: {name}", name=self.pad.name) if self.pad.name else t("Gamepad disconnected"))
                 elif ev.type == pygame.KEYDOWN:
                     self.held_scans.add(ev.scancode)
                     running = self.on_key(ev)
@@ -503,7 +516,7 @@ class App(FlightActions, HudDrawing):
             self.quit_after_land = False
             if not self.tello.flying:
                 return False
-            self.tello.log("Quit cancelled - the drone is still flying")
+            self.tello.log(t("Quit cancelled - the drone is still flying"))
         self.check_battery()
         if self.tello.connected:  # for rejoining the Wi-Fi: was it in the air when it went quiet?
             self.drone_seen, self.lost_while_flying = time.monotonic(), self.tello.flying
