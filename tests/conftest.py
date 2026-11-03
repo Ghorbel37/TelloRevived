@@ -123,12 +123,6 @@ def pygame_started():
 @pytest.fixture
 def app(tmp_path, monkeypatch):
     """An App talking to a FakeDrone (app.fake), with its own config.json and media folder."""
-    cmd_port, state_port, video_port = free_udp_ports(3)
-    fake = FakeDrone(state_port, video_port)
-    monkeypatch.setattr(drone, "CMD_PORT", cmd_port)
-    monkeypatch.setattr(drone, "STATE_PORT", state_port)
-    monkeypatch.setattr(drone, "TELLO_ADDR", fake.addr)
-    monkeypatch.setattr(video, "VIDEO_URL", f"udp://127.0.0.1:{video_port}?overrun_nonfatal=1&fifo_size=5000000")
     monkeypatch.setattr(settings.Settings.__init__, "__defaults__", (tmp_path / "config.json",))
     monkeypatch.setattr(app_module, "MEDIA_DIR", tmp_path / "media")
     # never look at or change this computer's real Wi-Fi; tests that need networks replace these
@@ -138,7 +132,20 @@ def app(tmp_path, monkeypatch):
     monkeypatch.setattr(wifi, "connect", lambda ssid: "tests don't connect")
     monkeypatch.setattr(app_module, "WIFI_SCAN_EVERY", 0.2)
     monkeypatch.setattr(updates, "latest_release", lambda: None)  # no calls to GitHub from the tests
-    the_app = app_module.App()
+    for attempt in range(5):  # a free port can be taken by something else before the app binds it
+        cmd_port, state_port, video_port = free_udp_ports(3)
+        fake = FakeDrone(state_port, video_port)
+        monkeypatch.setattr(drone, "CMD_PORT", cmd_port)
+        monkeypatch.setattr(drone, "STATE_PORT", state_port)
+        monkeypatch.setattr(drone, "TELLO_ADDR", fake.addr)
+        monkeypatch.setattr(video, "VIDEO_URL", f"udp://127.0.0.1:{video_port}?overrun_nonfatal=1&fifo_size=5000000")
+        try:
+            the_app = app_module.App()
+            break
+        except OSError:
+            fake.close()
+            if attempt == 4:
+                raise
     the_app.ask_about_updates = False  # the first-run question has its own tests
     the_app.fake = fake
     yield the_app

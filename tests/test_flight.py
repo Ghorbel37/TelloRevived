@@ -33,6 +33,7 @@ def fly(app):
 def test_hot_drone_only_gets_a_warning(app):
     app.fake.state["temph"] = 90
     connect(app)
+    assert wait_until(app, lambda: app.tello.state.get("temph") == 90)  # telemetry sent before it said 60
     text = screen_text(app)
     assert "to take off" in text and "Drone is hot (90" in text
     assert "Can't take off" not in text
