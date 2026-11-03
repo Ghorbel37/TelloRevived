@@ -72,7 +72,8 @@ def test_media_folder_can_be_changed_and_reset(flying_with_video, tmp_path):
 
 def test_app_delay_is_measured_and_shown(flying_with_video):
     app = flying_with_video
-    assert wait_until(app, lambda: app.app_delay is not None)  # measured once a frame is on screen
+    # measured once a frame is on screen; the label also needs the frame rate, known from the second frame
+    assert wait_until(app, lambda: app.app_delay is not None and app.video.fps, timeout=30)
     assert 0 <= app.app_delay < 1.0  # receive to screen, on this machine
     # shown while frames keep coming; a slow CI machine can pause the fake video for seconds, so say one just came
     app.video.frame_time = time.monotonic()
