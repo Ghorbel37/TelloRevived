@@ -2,7 +2,7 @@
 
 # TelloRevived
 
-Fly a Ryze/DJI Tello from your computer with a gamepad or the keyboard: a big live video feed, a flight HUD, photos and recordings, and a settings screen where everything can be changed.
+A Tello app for PC: fly a Ryze/DJI Tello drone from Windows, macOS or Linux with a gamepad or the keyboard. You get a big live video feed, a flight HUD, photos and recordings, and a settings screen where everything can be changed.
 
 ![Flying with the HUD](docs/screenshots/flight.png)
 
