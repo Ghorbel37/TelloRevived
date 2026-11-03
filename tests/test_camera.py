@@ -1,5 +1,7 @@
 """Video, photos, recordings and the photos and videos folder."""
 
+import time
+
 import av
 import pygame
 import pytest
@@ -72,5 +74,8 @@ def test_app_delay_is_measured_and_shown(flying_with_video):
     app = flying_with_video
     assert wait_until(app, lambda: app.app_delay is not None)  # measured once a frame is on screen
     assert 0 <= app.app_delay < 1.0  # receive to screen, on this machine
-    # shown while frames keep coming (a slow machine can pause the fake video for a moment)
-    assert wait_until(app, lambda: "app delay" in screen_text(app), timeout=15)
+    # shown while frames keep coming; a slow CI machine can pause the fake video for seconds, so say one just came
+    app.video.frame_time = time.monotonic()
+    assert "app delay" in screen_text(app)
+    app.video.frame_time = time.monotonic() - 3  # and hidden once the video stops
+    assert "app delay" not in screen_text(app)
