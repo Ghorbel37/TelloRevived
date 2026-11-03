@@ -70,6 +70,7 @@ def test_media_folder_can_be_changed_and_reset(flying_with_video, tmp_path):
 
 def test_app_delay_is_measured_and_shown(flying_with_video):
     app = flying_with_video
-    assert app.app_delay is not None and 0 <= app.app_delay < 1.0  # receive to screen, on this machine
+    assert wait_until(app, lambda: app.app_delay is not None)  # measured once a frame is on screen
+    assert 0 <= app.app_delay < 1.0  # receive to screen, on this machine
     # shown while frames keep coming (a slow machine can pause the fake video for a moment)
     assert wait_until(app, lambda: "app delay" in screen_text(app), timeout=15)
