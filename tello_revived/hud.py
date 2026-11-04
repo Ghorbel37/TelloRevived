@@ -36,6 +36,13 @@ class HudDrawing:
         self.screen.blit(img, rect)
         return rect
 
+    def dot_text(self, s, x, color, filled=True):
+        """A status dot and text at the top bar's left. The dot is drawn: some fonts don't have one."""
+        r = self.font.get_height() // 4
+        rect = self.text(s, (x + 2 * r + 6, 7), color)
+        pygame.draw.circle(self.screen, color, (x + r, rect.centery), r, 0 if filled else 2)
+        return rect
+
     def panel(self, rect, alpha=140):
         s = pygame.Surface(rect.size, pygame.SRCALPHA)
         s.fill((0, 0, 0, alpha))
@@ -206,13 +213,13 @@ class HudDrawing:
                      *self.camera_items(b)] + help_items
             mode = (t("READY"), (120, 190, 255))
         elif drone.blocked:
-            allow = ("Square" if on_pad else "F") if firewall.can_allow() else None
+            allow = (pad_label("square") if on_pad else "F") if firewall.can_allow() else None
             items = [(allow, t("Allow through firewall"), None)] + help_items + [(k("quit"), t("Quit"), None)]
             mode = (t("BLOCKED"), red)
         else:
             items = help_items + [(k("quit"), t("Quit"), None)]
             if self.drone_networks:
-                items.insert(0, ("Square" if on_pad else "C", t("Connect to {network}", network=self.drone_networks[0]), None))
+                items.insert(0, (pad_label("square") if on_pad else "C", t("Connect to {network}", network=self.drone_networks[0]), None))
             mode = (t("OFFLINE"), (150, 150, 150))
         return mode, [(btn, what, col) for btn, what, col in items if btn and btn != "-"]
 
@@ -278,11 +285,11 @@ class HudDrawing:
         if self.current_wifi and wifi.DRONE_NETWORK.match(self.current_wifi):
             title = t("On {network} - waiting for the drone to answer...", network=self.current_wifi)
         else:
-            title = t("Connect this computer's Wi-Fi to TELLO-XXXXXX and power on the drone")
+            title = t("Power on the drone and connect this computer's Wi-Fi to TELLO-XXXXXX")
         self.text(title, (sw // 2, sh // 2), (220, 220, 220), anchor="center")
         y = sh // 2 + 30
         if self.drone_networks:
-            keys = t("{key} or {button}", key="C", button="Square") if self.pad.name else "C"
+            keys = t("{key} or {button}", key="C", button=pad_label("square")) if self.pad.name else "C"
             label = self.font.render(f"{t('Connect to {network}', network=self.drone_networks[0])} ({keys})", True, (15, 18, 24))
             rect = label.get_rect(midtop=(sw // 2, y)).inflate(28, 12)
             pygame.draw.rect(self.screen, (120, 190, 255), rect, border_radius=6)
@@ -303,9 +310,11 @@ class HudDrawing:
         for i, line in enumerate((t("Tello Revived can ask GitHub for the latest version each time it starts."),
                                   t("Nothing else is sent. You can change this later in Settings > About."))):
             self.text(line, (sw // 2, cy - 40 + 24 * i), (190, 190, 190), self.font_small, "center")
-        on_pad = self.input_device() == "pad"
-        buttons = [("yes", self.font_big.render(f"{t('Yes')} ({'Cross' if on_pad else 'Y'})", True, (15, 18, 24))),
-                   ("no", self.font_big.render(f"{t('No')} ({'Circle' if on_pad else 'N'})", True, (15, 18, 24)))]
+        device = self.input_device()
+        keys = {"pad": (f" ({pad_label('cross')})", f" ({pad_label('circle')})"),
+                "keys": (" (Y)", " (N)")}.get(device, ("", ""))  # touch: tap
+        buttons = [("yes", self.font_big.render(t("Yes") + keys[0], True, (15, 18, 24))),
+                   ("no", self.font_big.render(t("No") + keys[1], True, (15, 18, 24)))]
         gap, pad = 40, (32, 16)
         x = sw // 2 - (sum(img.get_width() + pad[0] for _, img in buttons) + gap) // 2
         for answer, img in buttons:
@@ -345,7 +354,7 @@ class HudDrawing:
             self.text(line, (box.centerx, box.top + 56 + 24 * i), font=self.font_small, anchor="midtop")
         self.firewall_button = None
         if button:
-            keys = t("{key} or {button}", key="F", button="Square") if self.pad.name else "F"
+            keys = t("{key} or {button}", key="F", button=pad_label("square")) if self.pad.name else "F"
             label = self.font.render(f"{t('Allow it now')} ({keys})", True, (15, 18, 24))
             rect = label.get_rect(midtop=(box.centerx, box.bottom - 76)).inflate(28, 12)
             pygame.draw.rect(self.screen, (120, 190, 255), rect, border_radius=6)
@@ -390,7 +399,7 @@ class HudDrawing:
         self.panel(pygame.Rect(0, 0, sw, 34))
         x = 10
         if drone.connected:
-            x = self.text("● LINK", (x, 7), (90, 220, 120)).right + 18
+            x = self.dot_text("LINK", x, (90, 220, 120)).right + 18
             bat = int(st.get("bat", 0))
             low = self.settings["power"]["low_battery_warning"]
             col = (90, 220, 120) if bat > 2 * low else (240, 200, 60) if bat > low else (240, 70, 60)
@@ -406,9 +415,9 @@ class HudDrawing:
             temp = (st.get("templ", 0) + st.get("temph", 0)) / 2
             self.text(f"{temp:.0f}°C", (x, 7), (240, 70, 60) if temp > HOT_TEMP else (235, 235, 235))
         elif drone.blocked:
-            self.text(("● " if blink else "○ ") + t("BLOCKED BY FIREWALL"), (x, 7), (240, 70, 60))
+            self.dot_text(t("BLOCKED BY FIREWALL"), x, (240, 70, 60), filled=blink)
         else:
-            self.text(("● " if blink else "○ ") + t("SEARCHING FOR TELLO"), (x, 7), (240, 200, 60))
+            self.dot_text(t("SEARCHING FOR TELLO"), x, (240, 200, 60), filled=blink)
         right = sw - 10
         right = self.text(t(SPEED_NAMES[self.speed_idx]).upper(), (right, 7), (120, 190, 255),
                           anchor="topright").left - 18
@@ -416,8 +425,10 @@ class HudDrawing:
                           "topright").left - 18
         if self.video.recording:
             secs = int(now - self.video.rec_start)
-            self.text(f"{'●' if blink else ' '} REC {secs // 60}:{secs % 60:02d}", (right, 7), (240, 70, 60),
-                      anchor="topright")
+            rect = self.text(f"REC {secs // 60}:{secs % 60:02d}", (right, 7), (240, 70, 60), anchor="topright")
+            if blink:
+                r = self.font.get_height() // 4
+                pygame.draw.circle(self.screen, (240, 70, 60), (rect.left - r - 6, rect.centery), r)
 
     def draw_attitude(self, center, st):
         cx, cy = center

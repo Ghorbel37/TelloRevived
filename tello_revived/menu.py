@@ -50,9 +50,10 @@ HINTS = {
             "hint_bar": N_("The buttons you can use right now"), "video_fps": N_("Video frames per second, and the app's own delay (receive to screen)"),
             "sound_alerts": N_("Beeps for low battery, auto-land, failed landing, refusals, firewall"),
             "vibration_alerts": N_("The same alerts, felt through the gamepad"),
-            "units": N_("For height and speed in the flight data panel")},
+            "units": N_("For height and speed in the flight data panel"),
+            "button_names": N_("How gamepad buttons are named; Auto goes by the gamepad connected")},
     "drone": {"model": N_("Hides settings your drone can't use")},
-    "app": {"language": N_("The app's language; Auto follows your computer")},
+    "app": {"language": N_("The app's language; Auto follows the system's")},
     "flight": {"move_stick": N_("This stick moves; the other climbs and turns"),
                "speed_slow": N_("Top speed in slow mode"), "speed_normal": N_("Top speed in normal mode"),
                "speed_fast": N_("Top speed in fast mode"), "precision": N_("Speed while precision is held"),
@@ -91,6 +92,8 @@ class Menu:
         self.graph = None  # the Flight shown as a graph on the Flights page
         self.pending_delete = None  # a flight log waiting for the second Del / Square
         self.device = "keyboard"
+        self.box = None  # where the window was drawn: a click outside it closes it
+        self.close_rect = None  # its X button
         self.tab_rects = []
         self.row_rects = []
 
@@ -116,11 +119,13 @@ class Menu:
                      ("messages", N_("Messages")), ("hint_bar", N_("Button guide (bottom bar)")),
                      ("sound_alerts", N_("Sound alerts")), ("vibration_alerts", N_("Vibration alerts (gamepad)")),
                      ("video_fps", N_("Video fps and app delay"))]
+            names = Row("choice", N_("Gamepad buttons"), "hud", "button_names",
+                        [("auto", N_("Auto")), ("playstation", N_("PlayStation")), ("xbox", N_("Xbox"))])
             units = Row("choice", N_("Units"), "hud", "units", [("metric", N_("Metric (m, m/s)")),
                         ("metric_kmh", N_("Metric (m, km/h)")), ("imperial", N_("Imperial (ft, mph)"))])
             language = Row("choice", N_("Language"), "app", "language",
-                           [("auto", N_("Auto (computer's language)"))] + languages())
-            return [language, units] + [Row("toggle", label, "hud", k) for k, label in items] \
+                           [("auto", N_("Auto (system language)"))] + languages())
+            return [language, names, units] + [Row("toggle", label, "hud", k) for k, label in items] \
                 + [reset("hud", N_("Reset HUD to defaults"))]
         if name == "Flight":
             return [
@@ -199,7 +204,7 @@ class Menu:
 
     def delete_hint(self, flight):
         if self.pending_delete == flight.path:
-            return t("Press {key} again to delete this flight log", key="Square" if self.device == "gamepad" else "Del")
+            return t("Press {key} again to delete this flight log", key=pad_label("square") if self.device == "gamepad" else "Del")
         return None
 
     def selected_flight(self):
@@ -427,6 +432,8 @@ class Menu:
         if ev.type != pygame.MOUSEBUTTONDOWN or ev.button not in (1, 3):
             return
         self.capture = None
+        if self.box and not self.box.collidepoint(ev.pos) or self.close_rect and self.close_rect.collidepoint(ev.pos):
+            return self.close()  # clicked (or tapped) outside the window, or its X
         if self.graph and not any(r.collidepoint(ev.pos) for r in self.tab_rects):
             self.graph = None  # a click goes back to the list
             return
@@ -497,6 +504,7 @@ class Menu:
         sw, sh = screen.get_size()
         box = pygame.Rect(0, 0, min(880, sw - 24), sh - 24)
         box.center = (sw // 2, sh // 2)
+        self.box = box
         app.panel(box, 228)
         pygame.draw.rect(screen, (70, 80, 100), box, 1)
 
@@ -512,9 +520,15 @@ class Menu:
             app.text(name, rect.center, (255, 255, 255) if i == self.tab else DIM, app.font_small, "center")
             self.tab_rects.append(rect)
             x = rect.right + 6
+        # close button, drawn as an X (phone fonts may not have the character)
+        self.close_rect = pygame.Rect(box.right - 44, box.top + 12, 30, 28)
+        inner = self.close_rect.inflate(-14, -12)
+        for a, b in ((inner.topleft, inner.bottomright), (inner.bottomleft, inner.topright)):
+            pygame.draw.line(screen, (200, 205, 215), a, b, 3)
         version = app.font_small.render(f"Tello Revived v{VERSION}", True, DIM)
-        if x + version.get_width() + 16 < box.right:  # skip on narrow windows
-            app.text(f"Tello Revived v{VERSION}", (box.right - 16, box.top + 26), DIM, app.font_small, "midright")
+        if x + version.get_width() + 16 < self.close_rect.left:  # skip on narrow windows
+            app.text(f"Tello Revived v{VERSION}", (self.close_rect.left - 12, box.top + 26), DIM, app.font_small,
+                     "midright")
         pygame.draw.line(screen, (70, 80, 100), (box.left, box.top + 50), (box.right, box.top + 50))
 
         if self.graph:
@@ -619,15 +633,19 @@ class Menu:
     def footer(self):
         if self.graph:
             if self.pending_delete == self.graph.path:
-                key = "Square" if self.device == "gamepad" else "Del"
+                key = pad_label("square") if self.device == "gamepad" else "Del"
                 return t("Press {key} again to delete this flight log", key=key)
-            return {"gamepad": t("Circle: back to the list   Square: delete   L1 / R1: page"),
+            pages = f"{pad_label('l1')} / {pad_label('r1')}"
+            return {"gamepad": t("{back}: back to the list   {delete}: delete   {pages}: page", back=pad_label("circle"),
+                                 delete=pad_label("square"), pages=pages),
                     "mouse": t("Click: back to the list")}.get(self.device,
                                                                t("Esc: back to the list   Del: delete   Tab: page"))
         if self.capture:
             return t("Esc: cancel") if self.capture[0] == "pad" else t("Press the new key   Esc: cancel")
         if self.device == "gamepad":
-            return t("D-pad: move / change   Cross: edit   Square: clear   L1 / R1: page   Circle: close")
+            return t("D-pad: move / change   {edit}: edit   {clear}: clear   {pages}: page   {close}: close",
+                     edit=pad_label("cross"), clear=pad_label("square"), close=pad_label("circle"),
+                     pages=f"{pad_label('l1')} / {pad_label('r1')}")
         if self.device == "mouse":
-            return t("Click: change (left half / right-click goes back)   Wheel: scroll   Esc: close")
+            return t("Click: change (left half / right-click goes back)   Wheel: scroll   Click outside: close")
         return t("Up/Down: move   Left/Right: change   Enter: edit   Del: clear   Tab: page   Esc: close")
