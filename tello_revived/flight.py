@@ -26,6 +26,8 @@ class FlightActions:
         threading.Thread(target=self._do_takeoff, daemon=True).start()
 
     def _do_takeoff(self):
+        self.tello.expect_flight()
+        self.tello.start_video_now()
         # "ok" comes once it hovers; a refusal comes straight away and is just "error"
         try:
             reply = self.tello.query("takeoff", 12.0)
@@ -33,6 +35,7 @@ class FlightActions:
             self.taking_off = False
         if reply == "ok" or self.tello.flying:
             return
+        self.tello.flight_expected = 0.0  # not going anywhere: no video
         reason = self.takeoff_problem() or self.heat_warning()
         if not reason:
             reason = (t("no reply from the drone") if not reply else
@@ -57,6 +60,8 @@ class FlightActions:
         threading.Thread(target=self._do_throw, daemon=True).start()
 
     def _do_throw(self):
+        self.tello.expect_flight(THROW_WINDOW + 5)
+        self.tello.start_video_now()
         if self.settings["drone"]["model"] == "tt":
             reply = self.tello.query("throwfly", 2.0)
             if reply != "ok":

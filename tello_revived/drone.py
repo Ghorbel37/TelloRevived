@@ -53,6 +53,7 @@ class Tello:
         self.state_time = 0.0
         self.motor_time = None  # the drone's motor-time counter, last seen
         self.motors_seen = 0.0  # when it last went up
+        self.flight_expected = 0.0  # until then, takeoff or throw & go was just asked for
         self.session_time = 0.0
         self.session = False
         # the drone answers commands but its telemetry never arrives: almost always a firewall,
@@ -154,7 +155,19 @@ class Tello:
 
     def want_video(self):
         mode = self.settings["power"]["video"]
-        return mode == "on" or (mode == "flying" and self.flying)
+        flying = self.flying or time.monotonic() < self.flight_expected
+        return mode == "on" or (mode == "flying" and flying)
+
+    def expect_flight(self, seconds=15.0):
+        """Takeoff or throw & go was asked for: start the video now, without waiting for the motors.
+        If it hasn't taken off by then, the video stops again."""
+        self.flight_expected = time.monotonic() + seconds
+
+    def start_video_now(self):
+        """streamon straight away if the video is wanted, before a command that holds the link (takeoff
+        waits for its answer until the drone hovers, and the link loop's streamon would wait for that)."""
+        if self.want_video() and self.stream_on is not True and self.query("streamon", 2.0, lambda r: r == "ok"):
+            self.stream_on = True
 
     def apply_stream_settings(self):
         """Send the stream quality settings that aren't left at the drone's default."""

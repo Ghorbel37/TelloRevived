@@ -146,3 +146,22 @@ def test_drone_held_up_or_shaken_by_hand_isnt_flying(app):
     assert "to take off" in screen_text(app)
     app.fake.motors = None  # thrown or taken off: the motors run
     assert wait_until(app, lambda: app.tello.flying)
+
+
+def test_video_starts_with_the_takeoff_command_not_after_it(app):
+    app.fake.handlers["takeoff"] = climbs(height_after=8.0, reply_after=5.0)  # answers once it hovers
+    connect(app)
+    assert not app.fake.streaming  # video only while flying (the default)
+    app.takeoff()
+    assert wait_until(app, lambda: app.fake.streaming, timeout=1.5)  # before the drone's answer
+    received = app.fake.received
+    assert received.index("streamon") < received.index("takeoff")
+
+
+def test_refused_takeoff_stops_the_video_again(app):
+    app.fake.handlers["takeoff"] = lambda fake, addr: "error"
+    connect(app)
+    app.takeoff()
+    assert wait_until(app, lambda: any("Take off refused" in m for m in messages(app)))
+    assert not app.tello.want_video()
+    assert wait_until(app, lambda: not app.fake.streaming, timeout=6)
