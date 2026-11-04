@@ -49,6 +49,7 @@ def landscape(w=960, h=720):
 
 pygame.init(); sdl_controller.init()
 app = App()
+app.ask_about_updates = False  # the first-run question would cover every picture
 i18n.set_language(language)  # the README's screenshots are in English
 app.media_dir = lambda: Path("media")  # don't show this computer's folders
 frame = landscape()
@@ -67,6 +68,8 @@ def shot(name, setup=lambda: None, sticks=(0.0, 0.55, 0.0, 0.2)):
     app.tello.state_time = time.monotonic() + 1000
     app.video.frame_time = time.monotonic() + 1000
     setup()
+    st = app.tello.state  # in the air when the motors run (drone.Tello.flying)
+    app.tello.motors_seen = time.monotonic() + 1000 if st.get("h", 0) > 0 or st.get("tof", 0) > 40 else 0.0
     app.sticks = sticks  # what the stick boxes show
     app.draw_hud(app.draw_video())
     pygame.image.save(app.screen, str(out / f"{name}.png"))
