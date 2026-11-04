@@ -133,3 +133,16 @@ def test_no_flight_log_unless_switched_on(app, tmp_path):
     app.fake.state.update(h=100, tof=100)
     run(app, 1.5)
     assert not list((tmp_path / "media").glob("flight_*.csv"))
+
+
+def test_drone_held_up_or_shaken_by_hand_isnt_flying(app):
+    app.fake.motors = False  # motors off, whatever the sensors say
+    connect(app)
+    for h, tof in ((60, 120), (0, 300), (150, 90)):  # lifted, shaken about
+        app.fake.state.update(h=h, tof=tof)
+        run(app, 1.0)
+        assert not app.tello.flying
+    assert not app.tello.want_video()  # video stays off: it only streams while flying
+    assert "to take off" in screen_text(app)
+    app.fake.motors = None  # thrown or taken off: the motors run
+    assert wait_until(app, lambda: app.tello.flying)

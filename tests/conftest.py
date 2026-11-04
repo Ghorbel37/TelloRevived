@@ -34,7 +34,9 @@ class FakeDrone:
     """Answers commands like a Tello, sends telemetry to the app and, after streamon, video.
 
     Tests change its behaviour through its attributes:
-      state      telemetry fields it sends ten times a second (h, tof, bat, temph, ...)
+      state      telemetry fields it sends ten times a second (h, tof, bat, temph, ...); while h or tof
+                 say it's in the air, its motor-time counter ("time") runs, as on a real drone
+      motors     False keeps the motors off whatever h and tof say (the drone held up by hand)
       telemetry  False stops sending it (like a firewall would)
       answer     False stops answering commands (switched off)
       handlers   command -> function(fake) returning the reply, or None for no reply
@@ -45,6 +47,7 @@ class FakeDrone:
     def __init__(self, app_state_port, app_video_port):
         self.state = {"bat": 80, "h": 0, "tof": 10, "temph": 60, "templ": 57, "time": 0}
         self.telemetry = True
+        self.motors = None  # None: running while it's in the air; False: never (held up by hand)
         self.answer = True
         self.handlers = {}
         self.padding = ""
@@ -96,7 +99,12 @@ class FakeDrone:
 
     def _telemetry(self):
         out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        motor_seconds = 0.0
         while self.running:
+            airborne = self.state.get("h", 0) > 0 or 40 < self.state.get("tof", 0) < 1000
+            if self.motors if self.motors is not None else airborne:
+                motor_seconds += 0.1
+                self.state["time"] = int(motor_seconds)
             if self.telemetry:
                 out.sendto(";".join(f"{k}:{v}" for k, v in self.state.items()).encode() + b";\r\n", self.app_state)
             time.sleep(0.1)

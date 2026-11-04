@@ -12,6 +12,7 @@ from tello_revived.i18n import t
 TELLO_ADDR = ("192.168.10.1", 8889)
 CMD_PORT = 8889
 STATE_PORT = 8890
+MOTORS_WINDOW = 2.0  # s: the motor-time counter goes up once a second while the motors run
 
 
 
@@ -50,6 +51,8 @@ class Tello:
         self.awaiting = False
         self.state = {}
         self.state_time = 0.0
+        self.motor_time = None  # the drone's motor-time counter, last seen
+        self.motors_seen = 0.0  # when it last went up
         self.session_time = 0.0
         self.session = False
         # the drone answers commands but its telemetry never arrives: almost always a firewall,
@@ -76,10 +79,10 @@ class Tello:
 
     @property
     def flying(self):
-        """In the air: a height above the takeoff point, or the downward sensor seeing the ground
-        more than 40 cm away (it reads about 10 cm on the ground; h can stay 0 just after takeoff)."""
-        st = self.state
-        return self.connected and (st.get("h", 0) > 0 or 40 < st.get("tof", 0) < 1000)
+        """In the air: the motors are running, as the drone's motor-time counter ("time", in seconds)
+        has gone up lately. Height and the downward sensor aren't reliable for this: holding the drone
+        up by hand, or shaking it, changes them too, while the counter only runs with the motors."""
+        return self.connected and time.monotonic() - self.motors_seen < MOTORS_WINDOW
 
     def log(self, text):
         self.log_lines.append((time.monotonic(), text))
@@ -140,6 +143,11 @@ class Tello:
             if state:
                 self.state = state
                 self.state_time = time.monotonic()
+                motor_time = state.get("time")
+                if motor_time is not None:
+                    if self.motor_time is not None and motor_time > self.motor_time:
+                        self.motors_seen = self.state_time
+                    self.motor_time = motor_time
                 if self.blocked:
                     self.blocked = False
                     self.log(t("Telemetry is getting through now"))
