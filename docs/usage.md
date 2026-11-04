@@ -58,6 +58,8 @@ It shows the gamepad's buttons after you touch the gamepad, and the keyboard's k
 
 The top right corner shows the video frame rate and the **app delay**: the time from a video packet arriving over Wi-Fi to that frame being on screen, typically tens of milliseconds. The drone's own delay (encoding the picture and sending it over Wi-Fi) comes on top of that. It can't be measured from the computer, because the drone doesn't timestamp its frames. **HUD → Video fps and app delay** hides it.
 
+If the computer can't decode the video as fast as the drone sends it, the app skips frames instead of falling behind: the picture gets choppier but stays live, so you never steer by where the drone was a few seconds ago.
+
 ## Settings screen
 
 | Help | Video & Power |

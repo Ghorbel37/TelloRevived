@@ -9,6 +9,29 @@ import av
 from tello_revived.i18n import t
 
 VIDEO_URL = "udp://0.0.0.0:11111?overrun_nonfatal=1&fifo_size=5000000"
+BEHIND = 0.003  # s: a packet waiting less than this after the last one was done was already there
+FRAME_TIME = 1 / 30  # s between the drone's frames
+
+
+class CatchUp:
+    """Whether to skip converting (and drawing) a frame to catch up with the stream.
+
+    Showing every frame on a computer that can't keep up makes the picture fall further and further
+    behind the drone. Skipping keeps it live, at a lower frame rate. Only when it's needed, though:
+    when decoding and converting take longer than the drone's frames on average, or a backlog has
+    built up. The Wi-Fi often delivers two or three frames at once, and those are done in time anyway."""
+
+    def __init__(self):
+        self.work = 0.0  # seconds a packet takes, smoothed
+        self.waiting = 0  # packets in a row that were already there
+
+    def behind(self, received, done):
+        """received: when this packet came out of the demuxer; done: when the last one was finished."""
+        self.waiting = self.waiting + 1 if received - done < BEHIND else 0
+        return self.waiting > 0 and (self.work > 0.9 * FRAME_TIME or self.waiting >= 4)
+
+    def took(self, seconds):
+        self.work = 0.9 * self.work + 0.1 * seconds
 
 
 class Video:
@@ -45,18 +68,27 @@ class Video:
                 # (a thread per CPU core) wastes CPU and holds frames back, adding delay.
                 stream.codec_context.thread_count = 1
                 frame_times = deque(maxlen=30)
+                catch_up = CatchUp()
+                done = time.monotonic()
                 for packet in container.demux(stream):
                     received = time.monotonic()
                     if not self.running:
                         break
+                    behind = catch_up.behind(received, done)  # then don't convert (or draw) this one
                     with self.lock:
                         if self.rec_file and packet.size:
                             self.rec_file.write(bytes(packet))
                     try:
                         frames = packet.decode()
                     except Exception:
+                        done = time.monotonic()
                         continue  # corrupted packet (Wi-Fi loss) - next keyframe fixes it
+                    decoded = time.monotonic()
                     for f in frames:
+                        if behind and decoded - self.frame_time < 0.25:  # still show one now and then
+                            with self.lock:
+                                self.raw_frame = f  # photos get the newest frame anyway
+                            continue
                         # convert to RGB and scale to the window in one FFmpeg step, here rather
                         # than in the drawing loop
                         size = self.display_size or (f.width, f.height)
@@ -73,6 +105,8 @@ class Video:
                             self.native_size = (f.width, f.height)
                             self.frame_id += 1
                             self.frame_time = now
+                    done = time.monotonic()
+                    catch_up.took(done - received)
             except Exception:
                 pass  # stream timed out / dropped; reopen
             finally:

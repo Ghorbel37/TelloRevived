@@ -91,3 +91,21 @@ def test_button_names_follow_the_gamepad_or_the_setting():
         assert labels.pad_label("up") == "D-pad up" and labels.pad_label(None) == "-"
     finally:
         labels.set_pad_style("playstation", None)
+
+
+def test_video_skips_frames_only_when_it_cant_keep_up():
+    from tello_revived.video import CatchUp
+
+    fast = CatchUp()
+    for _ in range(20):
+        fast.took(0.02)  # 20 ms a frame: keeps up with 30 fps
+    assert not fast.behind(1.0, 1.0)  # a packet that was already waiting (a Wi-Fi burst)...
+    assert not fast.behind(1.02, 1.02)  # ...or two: they're done in time anyway
+    assert [fast.behind(t, t) for t in (1.04, 1.06)] == [False, True]  # four waiting in a row: a backlog
+    assert not fast.behind(2.0, 1.9)  # it arrived after the last was done: on time again
+
+    slow = CatchUp()
+    for _ in range(20):
+        slow.took(0.04)  # 40 ms a frame: can't keep up
+    assert slow.behind(1.0, 1.0)
+    assert not slow.behind(2.0, 1.9)
