@@ -296,7 +296,7 @@ class Menu:
         media = self.app.media_dir()
         return [
             Row("text", f"Tello Revived v{VERSION}"),
-            Row("info", N_("Fly a DJI/Ryze Tello from your computer with a gamepad or keyboard.")),
+            Row("info", N_("Fly a DJI/Ryze Tello with a gamepad or keyboard.")),
             Row("info", ""),
             Row("button", REPO_URL.removeprefix("https://"), fn=lambda: webbrowser.open(REPO_URL),
                 hint=N_("Opens in your browser")),

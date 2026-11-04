@@ -285,7 +285,7 @@ class HudDrawing:
         if self.current_wifi and wifi.DRONE_NETWORK.match(self.current_wifi):
             title = t("On {network} - waiting for the drone to answer...", network=self.current_wifi)
         else:
-            title = t("Power on the drone and connect this computer's Wi-Fi to TELLO-XXXXXX")
+            title = t("Power on the drone and connect to its Wi-Fi (TELLO-XXXXXX)")
         self.text(title, (sw // 2, sh // 2), (220, 220, 220), anchor="center")
         y = sh // 2 + 30
         if self.drone_networks:
