@@ -154,6 +154,7 @@ def test_video_starts_with_the_takeoff_command_not_after_it(app):
     assert not app.fake.streaming  # video only while flying (the default)
     app.takeoff()
     assert wait_until(app, lambda: app.fake.streaming, timeout=1.5)  # before the drone's answer
+    assert wait_until(app, lambda: "takeoff" in app.fake.received)  # the fake records it on its own thread
     received = app.fake.received
     assert received.index("streamon") < received.index("takeoff")
 
