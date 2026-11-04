@@ -1,4 +1,6 @@
 name: Build
+# the run's name on the Actions page ("Release v1.0"), instead of the last commit's message
+run-name: ${{ github.ref_type == 'tag' && format('Release {0}', github.ref_name) || format('Build {0}', github.ref_name) }}
 
 # Pushing a tag like v1.0 builds Windows, Linux and macOS apps and makes a release.
 # "Run workflow" on the Actions page builds them without a release.
