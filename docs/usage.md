@@ -50,7 +50,7 @@ It shows the gamepad's buttons after you touch the gamepad, and the keyboard's k
 
 ## Language and units
 
-**HUD → Language** picks the app's language: English, French, Spanish or German. **Auto**, the default, uses your computer's language when the app has it, and English otherwise.
+**HUD → Language** picks the app's language: English, French, Spanish or German. **Auto**, the default, uses the system language (your computer's or phone's) when the app has it, and English otherwise.
 
 **HUD → Units** sets how height and speed are shown: **Metric (m, m/s)**, **Metric (m, km/h)**, or **Imperial (ft, mph)**. Climb rate stays in m/s, or ft/s for imperial. Flight logs always use the drone's own units (cm, dm/s).
 
@@ -116,6 +116,7 @@ All of these are on the **Video & Power** page:
 ## Gamepads
 
 - Gamepads that SDL knows (PlayStation, Xbox and most others) work out of the box. A PS3 controller on Windows works through DsHidMini in SDF or XInput mode.
+- Buttons are named the way your gamepad names them: Cross, Circle, L1... on a PlayStation pad, A, B, LB... on an Xbox pad (and on most other pads, which copy its layout). **HUD → Gamepad buttons** picks one if Auto guesses wrong.
 - If the top bar shows your gamepad as `(raw)`, SDL doesn't know its layout. Run `uv run tello-revived --joytest`, then put the axis and button numbers it shows into `RAW_MAP` in `tello_revived/gamepad.py`.
 - L2 and R2 can be bound like buttons. A firm pull counts as a press.
 

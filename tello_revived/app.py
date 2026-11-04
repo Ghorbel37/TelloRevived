@@ -15,7 +15,7 @@ from tello_revived.flight import FlightActions
 from tello_revived.gamepad import Gamepad, shape
 from tello_revived.hud import MONO, UNITS, HudDrawing
 from tello_revived.i18n import t
-from tello_revived.labels import key_label
+from tello_revived.labels import key_label, set_pad_style
 from tello_revived.menu import Menu
 from tello_revived.sounds import Sounds
 from tello_revived import VERSION, desktop, firewall, folder_picker, i18n, updates, wifi
@@ -48,6 +48,7 @@ class App(FlightActions, HudDrawing):
         self.tello = Tello(self.settings)
         self.video = Video(self.tello.log)
         self.pad = Gamepad()
+        set_pad_style(self.settings["hud"]["button_names"], self.pad.name)
         self.speed_idx = 1
         self.menu = Menu(self)
         self.sticks = (0.0, 0.0, 0.0, 0.0)  # roll, pitch, throttle, yaw (-1..1, after scaling)
@@ -117,6 +118,7 @@ class App(FlightActions, HudDrawing):
         if section == "app" and key == "language":
             i18n.set_language(self.settings["app"]["language"])
         if section == "hud":
+            set_pad_style(self.settings["hud"]["button_names"], self.pad.name)
             self.sounds.enable(self.settings["hud"]["sound_alerts"])
         stream_keys = (None, "resolution", "stream_fps", "bitrate")
         if (section == "drone" or section == "power" and key in stream_keys) and self.tello.session:
@@ -478,6 +480,7 @@ class App(FlightActions, HudDrawing):
                     running = self.request_quit()
                 elif ev.type in (pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED):
                     self.pad.rescan()
+                    set_pad_style(self.settings["hud"]["button_names"], self.pad.name)  # Xbox or PlayStation names
                     self.tello.log(t("Gamepad: {name}", name=self.pad.name) if self.pad.name else t("Gamepad disconnected"))
                 elif ev.type == pygame.KEYDOWN:
                     self.held_scans.add(ev.scancode)

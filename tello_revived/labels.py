@@ -10,6 +10,29 @@ PAD_LABELS = {
     "select": "Select", "start": "Start", "ps": "PS", "l1": "L1", "r1": "R1", "l2": "L2", "r2": "R2", "l3": "L3", "r3": "R3",
     "up": "D-pad up", "down": "D-pad down", "left": "D-pad left", "right": "D-pad right",
 }
+# the same buttons on an Xbox-style pad (bindings keep the PlayStation names inside the app)
+XBOX_LABELS = {
+    "cross": "A", "circle": "B", "square": "X", "triangle": "Y", "select": "View", "start": "Menu", "ps": "Xbox",
+    "l1": "LB", "r1": "RB", "l2": "LT", "r2": "RT", "l3": "LS", "r3": "RS",
+}
+_xbox = False  # which names pad_label() uses (set_pad_style)
+
+
+def guess_pad_style(name):
+    """'xbox' or 'playstation', from the gamepad's name. Unknown pads mostly copy the Xbox layout."""
+    name = (name or "").lower()
+    if any(w in name for w in ("xbox", "x-box", "xinput", "microsoft")):
+        return "xbox"  # first: "Xbox Wireless Controller" would match the PS4's "Wireless Controller"
+    if not name or any(w in name for w in ("playstation", "ps3", "ps4", "ps5", "dualshock", "dualsense", "sony",
+                                            "sixaxis", "wireless controller")):
+        return "playstation"
+    return "xbox"
+
+
+def set_pad_style(setting, pad_name):
+    """Use Xbox or PlayStation button names: the setting ("auto" / "playstation" / "xbox") and the pad."""
+    global _xbox
+    _xbox = (guess_pad_style(pad_name) if setting == "auto" else setting) == "xbox"
 
 
 _sdl = None
@@ -59,4 +82,6 @@ def key_label(scancode):
 
 
 def pad_label(button):
-    return PAD_LABELS.get(button, "-") if button else "-"
+    if not button:
+        return "-"
+    return (_xbox and XBOX_LABELS.get(button)) or PAD_LABELS.get(button, "-")

@@ -76,3 +76,18 @@ def test_windows_firewall_script_only_opens_the_drone_ports():
     assert "'C:\\Users\\O''Brien\\Tello Revived.exe'" in script  # quote escaped for PowerShell
     assert "-Protocol UDP -LocalPort 8890,11111 -Action Allow" in script
     assert "-Direction Inbound" in script
+
+
+def test_button_names_follow_the_gamepad_or_the_setting():
+    try:
+        labels.set_pad_style("auto", "Xbox Wireless Controller")
+        assert (labels.pad_label("cross"), labels.pad_label("l1"), labels.pad_label("start")) == ("A", "LB", "Menu")
+        labels.set_pad_style("auto", "PLAYSTATION(R)3 Controller")
+        assert (labels.pad_label("cross"), labels.pad_label("l1")) == ("Cross", "L1")
+        labels.set_pad_style("auto", "8BitDo Pro 2")  # unknown pads mostly use the Xbox layout
+        assert labels.pad_label("triangle") == "Y"
+        labels.set_pad_style("playstation", "Xbox Wireless Controller")  # the setting wins
+        assert labels.pad_label("square") == "Square"
+        assert labels.pad_label("up") == "D-pad up" and labels.pad_label(None) == "-"
+    finally:
+        labels.set_pad_style("playstation", None)

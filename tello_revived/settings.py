@@ -36,6 +36,7 @@ DEFAULTS = {
         "sound_alerts": False,  # beeps for low battery, auto-land, failed landing, refusals, firewall
         "vibration_alerts": False,  # the same alerts as gamepad vibration
         "units": "metric",  # metric / metric_kmh / imperial (hud.UNITS)
+        "button_names": "auto",  # gamepad buttons named as on a PlayStation or Xbox pad; auto = by the pad's name
     },
     "drone": {
         "model": "tello",           # tello / edu / tt - only the RoboMaster TT (SDK 3.0) can change stream quality
